@@ -9,6 +9,16 @@
 #include "dberror.h"
 #include "record_mgr.h"
 
+//structure to store scaned data
+struct ScanData {
+    Expr *cond;
+    int currRecord;
+    int numRecords;
+    int no_blocks;
+    int currentblock;
+    int parsedRecords;
+} ScanData;
+
 // table and manager
 extern RC initRecordManager (void *mgmtData);
 extern RC shutdownRecordManager ();
@@ -34,7 +44,20 @@ extern RC closeScan (RM_ScanHandle *scan);
 
 // dealing with schemas
 extern int getRecordSize (Schema *schema);
-extern Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys);
+Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys)
+{
+// Allocate memory for schema
+    Schema *newSchema = (Schema *) malloc(sizeof(Schema));
+    newSchema->numAttr = numAttr; // # of attributes in schema
+    newSchema->keySize = keySize; // # keys in schema
+    newSchema->attrNames = attrNames;
+    newSchema->dataTypes = dataTypes;
+    newSchema->typeLength = typeLength;
+    newSchema->keyAttrs = keys;
+
+    return newSchema;
+}
+
 extern RC freeSchema (Schema *schema);
 
 // dealing with records and attribute values
