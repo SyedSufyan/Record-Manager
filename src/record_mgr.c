@@ -1,3 +1,14 @@
+#include<string.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include <time.h>
+
+#include "storage_mgr.h"
+#include "buffer_mgr.h"
+#include "buffer_mgr_stat.h"
+#include "dberror.h"
+#include "record_mgr.h"
+
 // table and manager
 extern RC initRecordManager (void *mgmtData);
 extern RC shutdownRecordManager ();
@@ -14,7 +25,10 @@ extern RC updateRecord (RM_TableData *rel, Record *record);
 extern RC getRecord (RM_TableData *rel, RID id, Record *record);
 
 // scans
-extern RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond);
+RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
+{
+
+}
 extern RC next (RM_ScanHandle *scan, Record *record);
 extern RC closeScan (RM_ScanHandle *scan);
 
