@@ -78,16 +78,16 @@ main (void)
   testName = "";
 
   testInsertManyRecords();
-  testRecords();
-  testCreateTableAndInsert();
-  testUpdateTable();
-  testScans();
-  testScansTwo();
-  testMultipleScans();
+  //testRecords();
+  //testCreateTableAndInsert();
+  //testUpdateTable();
+  //testScans();
+  //testScansTwo();
+  //testMultipleScans();
 
   return 0;
 }
-
+/*
 // ************************************************************ 
 void
 testRecords (void)
@@ -346,7 +346,7 @@ testUpdateTable (void)
   free(table);
   TEST_DONE();
 }
-
+*/
 void 
 testInsertManyRecords(void)
 {
@@ -378,7 +378,9 @@ testInsertManyRecords(void)
   
   TEST_CHECK(initRecordManager(NULL));
   TEST_CHECK(createTable("test_table_t",schema));
+  printf("createTable function completed\n");
   TEST_CHECK(openTable(table, "test_table_t"));
+  printf("OpenTable function completed\n");
   
   // insert rows into table
   for(i = 0; i < numInserts; i++)
@@ -386,7 +388,9 @@ testInsertManyRecords(void)
       realInserts[i] = inserts[i%10];
       realInserts[i].a = i;
       r = fromTestRecord(schema, realInserts[i]);
-      TEST_CHECK(insertRecord(table,r)); 
+      printf("check insertRecord\n");
+      TEST_CHECK(insertRecord(table,r));
+      printf("insertRecord passed"); 
       rids[i] = r->id;
     }
   TEST_CHECK(closeTable(table));
@@ -414,7 +418,7 @@ testInsertManyRecords(void)
   free(table);
   TEST_DONE();
 }
-
+/*
 void testScans (void)
 {
   RM_TableData *table = (RM_TableData *) malloc(sizeof(RM_TableData));
@@ -615,7 +619,7 @@ void testScansTwo (void)
   TEST_DONE();
 }
 
-
+*/
 Schema *
 testSchema (void)
 {
@@ -647,6 +651,7 @@ testSchema (void)
 Record *
 fromTestRecord (Schema *schema, TestRecord in)
 {
+  printf("fromTestRecord\n");
   return testRecord(schema, in.a, in.b, in.c);
 }
 
@@ -655,9 +660,8 @@ testRecord(Schema *schema, int a, char *b, int c)
 {
   Record *result;
   Value *value;
-
+  
   TEST_CHECK(createRecord(&result, schema));
-
   MAKE_VALUE(value, DT_INT, a);
   TEST_CHECK(setAttr(result, schema, 0, value));
   freeVal(value);
@@ -669,6 +673,6 @@ testRecord(Schema *schema, int a, char *b, int c)
   MAKE_VALUE(value, DT_INT, c);
   TEST_CHECK(setAttr(result, schema, 2, value));
   freeVal(value);
-
+  
   return result;
 }

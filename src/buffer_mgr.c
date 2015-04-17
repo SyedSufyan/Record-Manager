@@ -465,9 +465,9 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	if(pageNum >= ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages)
 	{
 		printf("Creating missing page %i\n", pageNum);
-		int a = ensureCapacity(pageNum + 1, ((BM_BufferMgmt *)bm->mgmtData)->f); 
+		int a = ensureCapacity(pageNum + 1, ((BM_BufferMgmt *)bm->mgmtData)->f);
 	}
-
+	
 	((BM_BufferMgmt *)bm->mgmtData)->search = searchPos(bm->mgmtData, pageNum);
 	((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->start;
 	
@@ -483,19 +483,20 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	
 	if( ((BM_BufferMgmt *)bm->mgmtData)->search != ((BM_BufferMgmt *)bm->mgmtData)->iterator || ((BM_BufferMgmt *)bm->mgmtData)->search == 0)
 	{
-		
 		int emptyFrame = emptyBufferFrame(bm);
-
+		
 		if (emptyFrame != -1)
 		{
+			
 			if(lengthofPool(bm->mgmtData) == 0)
 			{
 				((BM_BufferMgmt *)bm->mgmtData)->start = (Buffer *)malloc(sizeof(Buffer));
 				((BM_BufferMgmt *)bm->mgmtData)->start->ph = MAKE_PAGE_HANDLE();
+				printf("Test-9\n");
 				((BM_BufferMgmt *)bm->mgmtData)->start->ph->data = (char *) malloc(PAGE_SIZE);
-
+				printf("Test-10\n");
 				int a = readBlock(pageNum, ((BM_BufferMgmt *)bm->mgmtData)->f, ((BM_BufferMgmt *)bm->mgmtData)->start->ph->data);
-				
+				printf("Test-11\n");
 				if(a == RC_OK)
 				{
 					page->data = ((BM_BufferMgmt *)bm->mgmtData)->start->ph->data;
