@@ -297,19 +297,26 @@ extern int getNumTuples (RM_TableData *rel)
 // handling records in a table
 extern RC insertRecord (RM_TableData *rel, Record *record)
 {
-    int page_no = 1, a;
-    printf("record: %s\n", record->data);
-    printf("free page: %d\n", ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
+    int a;
+    //printf("record: %s\n", record->data);
+    //printf("free page: %d\n", ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
+
 
     BM_PageHandle *page=MAKE_PAGE_HANDLE();
 
     a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
-
+    //printf("currPos : %i \n", ((RM_RecordMgmt *)rel->mgmtData)->fh->curPagePos);
+    
     sprintf(page->data, "%s", record->data);
+    //printf("data: %s\n", page->data);
+
+    //printf("Total Page Number: %i \n", ((RM_RecordMgmt *)rel->mgmtData)->fh->totalNumPages);
+    //a = writeBlock(((RM_RecordMgmt *)rel->mgmtData)->freePages[0], ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f, page->data);
+    //printf("RC: %d write block\n", a);
 
     markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
     unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
-
+    forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
     record->id.page = ((RM_RecordMgmt *)rel->mgmtData)->freePages[0];
     record->id.slot = 0;
 
