@@ -264,6 +264,7 @@ extern RC openTable (RM_TableData *rel, char *name)
 
     mgmt->freePages = (int *) malloc(sizeof(int));
     mgmt->freePages[0] = mgmt->fh->totalNumPages;
+    mgmt->bm->mgmtData = NULL;
 
     a = initBufferPool(mgmt->bm, name, 4, RS_FIFO, NULL);
     
@@ -281,7 +282,30 @@ extern RC openTable (RM_TableData *rel, char *name)
 
 extern RC closeTable (RM_TableData *rel)
 {
+    int a;
 
+    a = shutdownBufferPool(((RM_RecordMgmt *)rel->mgmtData)->bm);
+    if(a == RC_OK)
+    {
+        ((RM_RecordMgmt *)rel->mgmtData)->bm->mgmtData = NULL;
+        ((RM_RecordMgmt *)rel->mgmtData)->bm = NULL;
+
+        free(((RM_RecordMgmt *)rel->mgmtData)->freePages);
+        ((RM_RecordMgmt *)rel->mgmtData)->freePages = NULL;
+
+        free(((RM_RecordMgmt *)rel->mgmtData)->fh);
+        ((RM_RecordMgmt *)rel->mgmtData)->fh = NULL;
+
+        free(rel->mgmtData);
+        rel->mgmtData = NULL;
+
+        free(rel->schema);
+        rel->schema = NULL;
+
+        return RC_OK;
+    }
+
+    return a;
 }
 
 extern RC deleteTable (char *name)
@@ -329,6 +353,10 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
                     record->id.page = ((RM_RecordMgmt *)rel->mgmtData)->freePages[0];
                     record->id.slot = 0;
 
+                    printf("record data: %s\n", record->data);
+                    //printf("length of record: %i\n", strlen(record->data));
+                    //printf("size of record: %i\n", sizeof(record->data));
+
                     free(page);
 
                     ((RM_RecordMgmt *)rel->mgmtData)->freePages[0] += 1;
@@ -354,7 +382,22 @@ extern RC updateRecord (RM_TableData *rel, Record *record)
 
 extern RC getRecord (RM_TableData *rel, RID id, Record *record)
 {
+    int a;
 
+    SM_PageHandle ph;
+    ph = (SM_PageHandle) malloc(PAGE_SIZE);
+
+    a = readBlock (id.page, ((RM_RecordMgmt *)rel->mgmtData)->fh, ph);
+    if(a == RC_OK)
+    {
+        record->id = id;
+        record->data = ph;
+        //printf("length of record: %i\n", strlen(ph));
+        //printf("size of record: %i\n", sizeof(ph));
+        return RC_OK;
+    }
+
+    return a;    
 }
 
 // scans
@@ -374,7 +417,10 @@ extern RC closeScan (RM_ScanHandle *scan)
 // dealing with schemas
 extern int getRecordSize (Schema *schema)
 {
-
+    int memoryRequired = recordMemoryRequired(schema);
+    //printf("getRecordSize memoryRequired : %i\n", (memoryRequired + schema->numAttr + 1));
+    return((memoryRequired)/2);
+    //return 10;
 }
 
 //simple Create Schema
@@ -401,7 +447,7 @@ extern RC createRecord (Record **record, Schema *schema)
 {
     int i;
     int memoryRequired = recordMemoryRequired(schema);
-
+    //printf("memoryRequired : %i\n", (memoryRequired + schema->numAttr + 1));
     *record = (Record *)malloc(sizeof(Record));
     record[0]->data = (char *)malloc(memoryRequired + schema->numAttr + 1);
     
@@ -422,7 +468,88 @@ extern RC freeRecord (Record *record)
 
 extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
 {
+    int offset = 0, i;
+    char temp[1000];
+    char *pre, *result;
 
+    int mem = recordMemoryRequired(schema);
+    pre = (char *)malloc(mem);
+    result = (char *)malloc(schema->typeLength[i]);
+
+    //printf("record : %s\n", record->data);
+    //printf("attrNum : %i\n", attrNum);
+
+    if(attrNum < schema->numAttr)
+    {
+        if(attrNum == 0)
+        {
+            sprintf(pre, "%s", "(");
+            sprintf(result, "%c", record->data[1]);
+
+            for(i = 2; i < strlen(record->data); i++)
+            {
+                if(record->data[i] == ',')
+                    break;
+
+                sprintf(temp, "%c", record->data[i]);
+                strcat(result, temp);
+            }
+        }
+        else if(attrNum > 0 && attrNum < schema->numAttr)
+        {
+            int reqNumCommas = attrNum, numCommas = 0;
+
+            sprintf(pre, "%s", "(");
+
+            for(i = 1; i < strlen(record->data); i++)
+            {
+                if(numCommas == reqNumCommas)
+                {
+                    if(record->data[i] == ',' || record->data[i] == ')')
+                        break;
+
+                    sprintf(temp, "%c", record->data[i]);
+                    strcat(result, temp);
+                    continue;
+                }
+
+                if(record->data[i] == ',')
+                {
+                    sprintf(result, "%c", record->data[++i]);
+                    numCommas++;
+                }
+
+                sprintf(temp, "%c", record->data[i]);
+                strcat(pre, temp);
+            }
+        }
+
+        //printf("result: %s\n", result);
+
+        Value *val = (Value*) malloc(sizeof(Value));
+        if(schema->dataTypes[attrNum] == DT_INT)
+            val->v.intV = atoi(result);
+        else if(schema->dataTypes[attrNum] == DT_FLOAT)
+            val->v.floatV = atof(result);
+        else if(schema->dataTypes[attrNum] == DT_BOOL)
+            val->v.boolV = (bool) *result;
+        else
+            val->v.stringV = result;
+
+        val->dt = schema->dataTypes[attrNum];
+        value[0] = val;
+        //printf("result: %s\n", value[0]->v.stringV);
+        //printf("serserializeValue : %s\n", serializeValue(value[0]));
+
+        //free(pre);
+        //free(result);
+        //pre = NULL;
+        //result = NULL;
+
+        return RC_OK;
+    }
+
+    return RC_RM_NO_MORE_TUPLES;
 }
 
 extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
@@ -516,7 +643,7 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
         else if(schema->dataTypes[attrNum] == DT_FLOAT)
             sprintf(temp, "%f", value->v.floatV);
         else if(schema->dataTypes[attrNum] == DT_BOOL)
-            sprintf(temp, "%f", value->v.boolV);
+            sprintf(temp, "%d", value->v.boolV);
         else
             strcpy(temp, value->v.stringV);
 
@@ -525,6 +652,10 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
         strcat(record->data, post);
 
         //printf("record : %s\n", record->data);
+        free(pre);
+        free(post);
+        pre = NULL;
+        post = NULL;
 
         return RC_OK;
     }
