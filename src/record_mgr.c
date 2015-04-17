@@ -259,6 +259,12 @@ extern RC openTable (RM_TableData *rel, char *name)
 
     int ret = openPageFile(name, mgmt->fh);
 
+    if(ret == RC_FILE_NOT_FOUND)
+        return RC_FILE_NOT_FOUND;
+
+    mgmt->freePages = (int *) malloc(sizeof(int));
+    mgmt->freePages[0] = mgmt->fh->totalNumPages;
+
     a = initBufferPool(mgmt->bm, name, 4, RS_FIFO, NULL);
     
     if(a == RC_OK)
@@ -293,22 +299,25 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
 {
     int page_no = 1, a;
     printf("record: %s\n", record->data);
+    printf("free page: %d\n", ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
 
     BM_PageHandle *page=MAKE_PAGE_HANDLE();
 
-    a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, page_no);
+    a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
 
     sprintf(page->data, "%s", record->data);
 
     markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
     unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
 
-    record->id.page = page_no;
+    record->id.page = ((RM_RecordMgmt *)rel->mgmtData)->freePages[0];
     record->id.slot = 0;
 
     free(page);
 
-    //return RC_OK;
+    ((RM_RecordMgmt *)rel->mgmtData)->freePages[0] += 1;
+
+    return RC_OK;
 }
 
 extern RC deleteRecord (RM_TableData *rel, RID id)
