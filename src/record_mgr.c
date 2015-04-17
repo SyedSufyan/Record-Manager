@@ -305,26 +305,41 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
     BM_PageHandle *page=MAKE_PAGE_HANDLE();
 
     a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
-    //printf("currPos : %i \n", ((RM_RecordMgmt *)rel->mgmtData)->fh->curPagePos);
     
-    sprintf(page->data, "%s", record->data);
-    //printf("data: %s\n", page->data);
+    if(a == RC_OK)
+    {
+        //printf("currPos : %i \n", ((RM_RecordMgmt *)rel->mgmtData)->fh->curPagePos);
+        
+        sprintf(page->data, "%s", record->data);
+        //printf("data: %s\n", page->data);
 
-    //printf("Total Page Number: %i \n", ((RM_RecordMgmt *)rel->mgmtData)->fh->totalNumPages);
-    //a = writeBlock(((RM_RecordMgmt *)rel->mgmtData)->freePages[0], ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f, page->data);
-    //printf("RC: %d write block\n", a);
+        //printf("Total Page Number: %i \n", ((RM_RecordMgmt *)rel->mgmtData)->fh->totalNumPages);
+        //a = writeBlock(((RM_RecordMgmt *)rel->mgmtData)->freePages[0], ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f, page->data);
+        //printf("RC: %d write block\n", a);
 
-    markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
-    unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
-    forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
-    record->id.page = ((RM_RecordMgmt *)rel->mgmtData)->freePages[0];
-    record->id.slot = 0;
+        a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+        if(a == RC_OK)
+        {
+            a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+            if(a == RC_OK)
+            {
+                a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+                if(a == RC_OK)
+                {
+                    record->id.page = ((RM_RecordMgmt *)rel->mgmtData)->freePages[0];
+                    record->id.slot = 0;
 
-    free(page);
+                    free(page);
 
-    ((RM_RecordMgmt *)rel->mgmtData)->freePages[0] += 1;
+                    ((RM_RecordMgmt *)rel->mgmtData)->freePages[0] += 1;
 
-    return RC_OK;
+                    return RC_OK;
+                }
+            }
+        }
+    }
+
+    return a;
 }
 
 extern RC deleteRecord (RM_TableData *rel, RID id)
