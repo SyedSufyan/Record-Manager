@@ -310,7 +310,14 @@ extern RC closeTable (RM_TableData *rel)
 
 extern RC deleteTable (char *name)
 {
+    if (name == NULL)
+        return RC_FILE_NOT_FOUND;
 
+    if (destroyPageFile(name) != RC_OK)
+        return RC_TABLE_DELETE_ERROR;
+
+    return RC_OK;
+	
 }
 
 extern int getNumTuples (RM_TableData *rel)
@@ -375,8 +382,47 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
 
 }
 
-extern RC updateRecord (RM_TableData *rel, Record *record)
+RC updateRecord (RM_TableData *rel, Record *record)
 {
+    printf("\n Update Record hiiiii");
+   
+    int totalrecordlength;
+    char *spaceToBeUpdated;
+    BM_PageHandle *page=MAKE_PAGE_HANDLE();
+    BM_BufferPool *bm=(BM_BufferPool *)rel->mgmtData;
+    RID id=record->id;
+    PageNumber _pgno=id.page;//gets the appropriate page that needs to be updated.
+    int slot=id.slot;//gets the appropriate slot that needs to be updated.
+    totalrecordlength=getRecordSize(rel->schema);
+
+    printf("\n In updateRecord 1 %i , %i, %i , %i \n",id, _pgno, slot, totalrecordlength);
+    int a;
+    SM_PageHandle ph;
+    ph = (SM_PageHandle) malloc(PAGE_SIZE);
+
+    a = readBlock (id.page, ((RM_RecordMgmt *)rel->mgmtData)->fh, ph);
+    if(a == RC_OK)
+    {
+        record->id = id;
+        record->data = ph;
+        //printf("length of record: %i\n", strlen(ph));
+        //printf("size of record: %i\n", sizeof(ph));
+//        return RC_OK;
+    }
+    
+    printf("\n In updateRecord 2 : %i , %i, %i , %i , %i\n",id, _pgno, slot, totalrecordlength, spaceToBeUpdated );
+
+    //if(pinPage(bm,page,_pgno)==RC_OK)
+    //{
+        spaceToBeUpdated=page->data;
+        spaceToBeUpdated =spaceToBeUpdated +totalrecordlength*slot;//calculate the address that needs to be updated.
+        strncpy(spaceToBeUpdated,record->data,totalrecordlength);// copy the contents.
+        markDirty(bm,page);
+    //    unpinPage(bm,page);
+    //}
+    printf("\n In updateRecord 3 ");
+    free(page);
+    return RC_OK;
 
 }
 
