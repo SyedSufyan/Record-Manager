@@ -332,9 +332,7 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
     //printf("record: %s\n", record->data);
     //printf("free page: %d\n", ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
 
-
     BM_PageHandle *page=MAKE_PAGE_HANDLE();
-
     a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
     
     if(a == RC_OK)
@@ -379,13 +377,31 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
 
 extern RC deleteRecord (RM_TableData *rel, RID id)
 {
-
+    int i ,totalrecordlength;
+    char *spaceToBeCleared=NULL;
+    BM_PageHandle *page=MAKE_PAGE_HANDLE();
+    BM_BufferPool *bm=(BM_BufferPool *)rel->mgmtData;
+    PageNumber _pgno=id.page;
+    int slot=id.slot;
+    totalrecordlength=getRecordSize(rel->schema);//gets the total record size that needs to be deleted.
+    if(pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page,_pgno)==RC_OK)
+    {
+        spaceToBeCleared=page->data;
+        spaceToBeCleared =spaceToBeCleared +totalrecordlength*slot;
+        for(i=0;i<totalrecordlength;i++)
+        {
+            spaceToBeCleared [i]='>';//We implement TOMBSTONE concept to handle deletion and freespace. '>' will indicate that this memory will no longer be involve in record insertion. On page reorganization this memory will be freed up and given to the system.
+        }
+        markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm,page);
+        unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page);
+    }
+    free(page);
+    return RC_OK;
 }
 
 RC updateRecord (RM_TableData *rel, Record *record)
 {
     printf("\n Update Record hiiiii");
-   
     int totalrecordlength;
     char *spaceToBeUpdated;
     BM_PageHandle *page=MAKE_PAGE_HANDLE();
@@ -396,7 +412,7 @@ RC updateRecord (RM_TableData *rel, Record *record)
     totalrecordlength=getRecordSize(rel->schema);
 
     printf("\n In updateRecord 1 %i , %i, %i , %i \n",id, _pgno, slot, totalrecordlength);
-    int a;
+   /* int a;
     SM_PageHandle ph;
     ph = (SM_PageHandle) malloc(PAGE_SIZE);
 
@@ -409,17 +425,17 @@ RC updateRecord (RM_TableData *rel, Record *record)
         //printf("size of record: %i\n", sizeof(ph));
 //        return RC_OK;
     }
-    
+    */
     printf("\n In updateRecord 2 : %i , %i, %i , %i , %i\n",id, _pgno, slot, totalrecordlength, spaceToBeUpdated );
-
-    //if(pinPage(bm,page,_pgno)==RC_OK)
-    //{
+    
+    if(pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, _pgno)==RC_OK)
+    {
         spaceToBeUpdated=page->data;
-        spaceToBeUpdated =spaceToBeUpdated +totalrecordlength*slot;//calculate the address that needs to be updated.
-        strncpy(spaceToBeUpdated,record->data,totalrecordlength);// copy the contents.
-        markDirty(bm,page);
-    //    unpinPage(bm,page);
-    //}
+        spaceToBeUpdated =spaceToBeUpdated +totalrecordlength*slot; //calculate the address that needs to be updated.
+        strncpy(spaceToBeUpdated,record->data,totalrecordlength); // copy the contents.
+        markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm,page);
+        unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page);
+    } 
     printf("\n In updateRecord 3 ");
     free(page);
     return RC_OK;
@@ -449,19 +465,29 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record)
 // scans
 RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
 {
-    
+
 }
+
 RC next (RM_ScanHandle *scan, Record *record)
 {
-
+       
 }
-extern RC closeScan (RM_ScanHandle *scan)
+RC closeScan (RM_ScanHandle *scan)
 {
+ if(scan == NULL)
+        return RC_SCANHANDLE_ERROR;
 
+    //free(scan->mgmtData->currentRID);    // RID in scan's mgmt data
+    free(scan->mgmtData);       // Scan's management data
+    free(scan->rel->mgmtData);    // Scan's RM_tableData's mgmt data
+    free(scan->rel->name);      // Table name in scan
+    free(scan->rel);        // SCan's RM_tableData
+
+    return RC_OK;
 }
 
 // dealing with schemas
-extern int getRecordSize (Schema *schema)
+int getRecordSize (Schema *schema)
 {
     int memoryRequired = recordMemoryRequired(schema);
     //printf("getRecordSize memoryRequired : %i\n", (memoryRequired + schema->numAttr + 1));
@@ -493,7 +519,7 @@ extern RC createRecord (Record **record, Schema *schema)
 {
     int i;
     int memoryRequired = recordMemoryRequired(schema);
-    //printf("memoryRequired : %i\n", (memoryRequired + schema->numAttr + 1));
+    printf("memoryRequired : %i\n", (memoryRequired + schema->numAttr + 1));
     *record = (Record *)malloc(sizeof(Record));
     record[0]->data = (char *)malloc(memoryRequired + schema->numAttr + 1);
     
@@ -509,17 +535,20 @@ extern RC createRecord (Record **record, Schema *schema)
 
 extern RC freeRecord (Record *record)
 {
-
+	free(record);//free record pointer.
+	return RC_OK;
 }
 
 extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
 {
-    int offset = 0, i;
+    int offset = 0, i=0;
     char temp[1000];
     char *pre, *result;
 
     int mem = recordMemoryRequired(schema);
     pre = (char *)malloc(mem);
+
+    //for(i = 1; i < strlen(record->data); i++)
     result = (char *)malloc(schema->typeLength[i]);
 
     //printf("record : %s\n", record->data);

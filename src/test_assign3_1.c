@@ -77,17 +77,17 @@ main (void)
 {
   testName = "";
 
-  testInsertManyRecords();
-  //testRecords();
-  //testCreateTableAndInsert();
-  //testUpdateTable();
+  //testInsertManyRecords();
+  testRecords();  //--running
+  testCreateTableAndInsert(); //--running
+  testUpdateTable();
   //testScans();
   //testScansTwo();
   //testMultipleScans();
 
   return 0;
 }
-/*
+
 // ************************************************************ 
 void
 testRecords (void)
@@ -183,6 +183,7 @@ testCreateTableAndInsert (void)
   TEST_DONE();
 }
 
+
 void
 testMultipleScans(void)
 {
@@ -259,6 +260,7 @@ testMultipleScans(void)
   TEST_DONE();
 }
 
+
 void 
 testUpdateTable (void)
 {
@@ -320,6 +322,7 @@ testUpdateTable (void)
       TEST_CHECK(deleteRecord(table,rids[deletes[i]]));
     }
 
+  printf("After delete!!!!!!");
   // update rows into table
   for(i = 0; i < numUpdates; i++)
     {
@@ -328,6 +331,8 @@ testUpdateTable (void)
       TEST_CHECK(updateRecord(table,r)); 
     }
 
+  printf("After update!!!!!!");
+  
   TEST_CHECK(closeTable(table));
   TEST_CHECK(openTable(table, "test_table_r"));
 
@@ -346,7 +351,7 @@ testUpdateTable (void)
   free(table);
   TEST_DONE();
 }
-*/
+
 void 
 testInsertManyRecords(void)
 {
@@ -403,22 +408,24 @@ testInsertManyRecords(void)
       TEST_CHECK(getRecord(table, rid, r));
       ASSERT_EQUALS_RECORDS(fromTestRecord(schema, realInserts[i]), r, schema, "compare records");
     }
-  
+    printf("\n Hiiiiiii 1");
   r = fromTestRecord(schema, updates[0]);
   r->id = rids[randomRec];
   TEST_CHECK(updateRecord(table,r));
+	  printf("\n Hiiiiiii 2");
   TEST_CHECK(getRecord(table, rids[randomRec], r)); 
   ASSERT_EQUALS_RECORDS(fromTestRecord(schema, updates[0]), r, schema, "compare records");
    
   TEST_CHECK(closeTable(table));
   TEST_CHECK(deleteTable("test_table_t"));
+  printf("\n Hiiiiiii 3");
   TEST_CHECK(shutdownRecordManager());
 
   freeRecord(r);
   free(table);
   TEST_DONE();
 }
-/*
+
 void testScans (void)
 {
   RM_TableData *table = (RM_TableData *) malloc(sizeof(RM_TableData));
@@ -619,7 +626,6 @@ void testScansTwo (void)
   TEST_DONE();
 }
 
-*/
 Schema *
 testSchema (void)
 {
@@ -658,9 +664,11 @@ fromTestRecord (Schema *schema, TestRecord in)
 Record *
 testRecord(Schema *schema, int a, char *b, int c)
 {
+
+  //printf("TestRecord\n");
   Record *result;
   Value *value;
-  
+    printf("TestRecord going towards createrecord\n");
   TEST_CHECK(createRecord(&result, schema));
   MAKE_VALUE(value, DT_INT, a);
   TEST_CHECK(setAttr(result, schema, 0, value));
