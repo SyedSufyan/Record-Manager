@@ -407,6 +407,7 @@ RC appendEmptyBlock (SM_FileHandle *fHandle)
 
 	//fHandle->mgmtInfo = fp;
 	fHandle->totalNumPages = (ftell(fHandle->mgmtInfo)/PAGE_SIZE);
+	//printf("appendEmptyBlock totalNumPages: %i\n", fHandle->totalNumPages);
 	//fclose(fHandle->mgmtInfo);
 	//printf("\n=================== Append Empty Block Complete ========================\n");
 	return RC_OK;

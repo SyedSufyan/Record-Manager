@@ -77,11 +77,11 @@ main (void)
 {
   testName = "";
 
-  //testInsertManyRecords();
-  testRecords();  //--running
-  testCreateTableAndInsert(); //--running
-  testUpdateTable();
-  //testScans();
+  testInsertManyRecords(); // working
+  testRecords(); // working
+  testCreateTableAndInsert(); //working
+  testUpdateTable(); //working
+  //testScans(); //need start working
   //testScansTwo();
   //testMultipleScans();
 
@@ -182,8 +182,7 @@ testCreateTableAndInsert (void)
   free(table);
   TEST_DONE();
 }
-
-
+/*
 void
 testMultipleScans(void)
 {
@@ -259,8 +258,7 @@ testMultipleScans(void)
   free(table);
   TEST_DONE();
 }
-
-
+*/
 void 
 testUpdateTable (void)
 {
@@ -315,14 +313,13 @@ testUpdateTable (void)
       TEST_CHECK(insertRecord(table,r)); 
       rids[i] = r->id;
     }
-
+  
   // delete rows from table
   for(i = 0; i < numDeletes; i++)
     {
       TEST_CHECK(deleteRecord(table,rids[deletes[i]]));
     }
 
-  printf("After delete!!!!!!");
   // update rows into table
   for(i = 0; i < numUpdates; i++)
     {
@@ -331,8 +328,6 @@ testUpdateTable (void)
       TEST_CHECK(updateRecord(table,r)); 
     }
 
-  printf("After update!!!!!!");
-  
   TEST_CHECK(closeTable(table));
   TEST_CHECK(openTable(table, "test_table_r"));
 
@@ -383,9 +378,7 @@ testInsertManyRecords(void)
   
   TEST_CHECK(initRecordManager(NULL));
   TEST_CHECK(createTable("test_table_t",schema));
-  printf("createTable function completed\n");
   TEST_CHECK(openTable(table, "test_table_t"));
-  printf("OpenTable function completed\n");
   
   // insert rows into table
   for(i = 0; i < numInserts; i++)
@@ -393,9 +386,7 @@ testInsertManyRecords(void)
       realInserts[i] = inserts[i%10];
       realInserts[i].a = i;
       r = fromTestRecord(schema, realInserts[i]);
-      printf("check insertRecord\n");
       TEST_CHECK(insertRecord(table,r));
-      printf("insertRecord passed"); 
       rids[i] = r->id;
     }
   TEST_CHECK(closeTable(table));
@@ -408,24 +399,21 @@ testInsertManyRecords(void)
       TEST_CHECK(getRecord(table, rid, r));
       ASSERT_EQUALS_RECORDS(fromTestRecord(schema, realInserts[i]), r, schema, "compare records");
     }
-    printf("\n Hiiiiiii 1");
+  
   r = fromTestRecord(schema, updates[0]);
   r->id = rids[randomRec];
   TEST_CHECK(updateRecord(table,r));
-	  printf("\n Hiiiiiii 2");
   TEST_CHECK(getRecord(table, rids[randomRec], r)); 
   ASSERT_EQUALS_RECORDS(fromTestRecord(schema, updates[0]), r, schema, "compare records");
-   
   TEST_CHECK(closeTable(table));
   TEST_CHECK(deleteTable("test_table_t"));
-  printf("\n Hiiiiiii 3");
   TEST_CHECK(shutdownRecordManager());
 
   freeRecord(r);
   free(table);
   TEST_DONE();
 }
-
+/*
 void testScans (void)
 {
   RM_TableData *table = (RM_TableData *) malloc(sizeof(RM_TableData));
@@ -626,6 +614,7 @@ void testScansTwo (void)
   TEST_DONE();
 }
 
+*/
 Schema *
 testSchema (void)
 {
@@ -657,18 +646,15 @@ testSchema (void)
 Record *
 fromTestRecord (Schema *schema, TestRecord in)
 {
-  printf("fromTestRecord\n");
   return testRecord(schema, in.a, in.b, in.c);
 }
 
 Record *
 testRecord(Schema *schema, int a, char *b, int c)
 {
-
-  //printf("TestRecord\n");
   Record *result;
   Value *value;
-    printf("TestRecord going towards createrecord\n");
+  
   TEST_CHECK(createRecord(&result, schema));
   MAKE_VALUE(value, DT_INT, a);
   TEST_CHECK(setAttr(result, schema, 0, value));

@@ -8,15 +8,7 @@
 #include "buffer_mgr_stat.h"
 #include "dberror.h"
 #include "record_mgr.h"
-
-
-typedef struct RM_RecordMgmt
-{
-    BM_BufferPool *bm;
-    SM_FileHandle *fh;
-    int *freePages;
-
-} RM_RecordMgmt;
+#include "mgmt.h"
 
 char *serSchema(Schema *schema)
 {
@@ -218,7 +210,7 @@ extern RC initRecordManager (void *mgmtData)
 
 extern RC shutdownRecordManager ()
 {
-
+    return RC_OK;
 }
 
 extern RC createTable (char *name, Schema *schema)
@@ -255,21 +247,17 @@ extern RC openTable (RM_TableData *rel, char *name)
 
     mgmt = (RM_RecordMgmt *)malloc(sizeof(RM_RecordMgmt));
     mgmt->bm = MAKE_POOL();
-    mgmt->fh = (SM_FileHandle *)malloc(sizeof(SM_FileHandle));
 
-    int ret = openPageFile(name, mgmt->fh);
-
-    if(ret == RC_FILE_NOT_FOUND)
-        return RC_FILE_NOT_FOUND;
-
-    mgmt->freePages = (int *) malloc(sizeof(int));
-    mgmt->freePages[0] = mgmt->fh->totalNumPages;
     mgmt->bm->mgmtData = NULL;
 
     a = initBufferPool(mgmt->bm, name, 4, RS_FIFO, NULL);
     
     if(a == RC_OK)
     {
+        mgmt->freePages = (int *) malloc(sizeof(int));
+        //mgmt->freePages[0] = mgmt->fh->totalNumPages;
+        mgmt->freePages[0] = ((BM_BufferMgmt *)(mgmt->bm)->mgmtData)->f->totalNumPages;
+
         rel->name = name;
         rel->mgmtData = mgmt;
         rel->schema = deserSchema(name);
@@ -293,8 +281,8 @@ extern RC closeTable (RM_TableData *rel)
         free(((RM_RecordMgmt *)rel->mgmtData)->freePages);
         ((RM_RecordMgmt *)rel->mgmtData)->freePages = NULL;
 
-        free(((RM_RecordMgmt *)rel->mgmtData)->fh);
-        ((RM_RecordMgmt *)rel->mgmtData)->fh = NULL;
+        //free(((RM_RecordMgmt *)rel->mgmtData)->fh);
+        //((RM_RecordMgmt *)rel->mgmtData)->fh = NULL;
 
         free(rel->mgmtData);
         rel->mgmtData = NULL;
@@ -310,14 +298,14 @@ extern RC closeTable (RM_TableData *rel)
 
 extern RC deleteTable (char *name)
 {
-    if (name == NULL)
-        return RC_FILE_NOT_FOUND;
+    int a;
 
-    if (destroyPageFile(name) != RC_OK)
-        return RC_TABLE_DELETE_ERROR;
+    a = destroyPageFile(name);
+    
+    if(a == RC_OK)
+        return RC_OK;
 
-    return RC_OK;
-	
+    return a;
 }
 
 extern int getNumTuples (RM_TableData *rel)
@@ -332,7 +320,8 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
     //printf("record: %s\n", record->data);
     //printf("free page: %d\n", ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
 
-    BM_PageHandle *page=MAKE_PAGE_HANDLE();
+    BM_PageHandle *page = MAKE_PAGE_HANDLE();
+
     a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
     
     if(a == RC_OK)
@@ -377,69 +366,78 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
 
 extern RC deleteRecord (RM_TableData *rel, RID id)
 {
-    int i ,totalrecordlength;
-    char *spaceToBeCleared=NULL;
-    BM_PageHandle *page=MAKE_PAGE_HANDLE();
-    BM_BufferPool *bm=(BM_BufferPool *)rel->mgmtData;
-    PageNumber _pgno=id.page;
-    int slot=id.slot;
-    totalrecordlength=getRecordSize(rel->schema);//gets the total record size that needs to be deleted.
-    if(pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page,_pgno)==RC_OK)
+    int a, i;
+
+    //printf("Record id.page: %i\n", id.page);
+    //printf("Record id.slot: %i\n", id.slot);
+
+    if(id.page > 0 && id.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
-        spaceToBeCleared=page->data;
-        spaceToBeCleared =spaceToBeCleared +totalrecordlength*slot;
-        for(i=0;i<totalrecordlength;i++)
+        BM_PageHandle *page = MAKE_PAGE_HANDLE();
+        a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, id.page);
+
+        if(a == RC_OK)
         {
-            spaceToBeCleared [i]='>';//We implement TOMBSTONE concept to handle deletion and freespace. '>' will indicate that this memory will no longer be involve in record insertion. On page reorganization this memory will be freed up and given to the system.
+            //printf("page->data: %s\n", page->data);
+            memset(page->data, '\0', strlen(page->data));
+            //sprintf(page->data, "%s", '\0');
+
+            a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+            if(a == RC_OK)
+            {
+                a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+                if(a == RC_OK)
+                {
+                    a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+                    if(a == RC_OK)
+                    {
+                        free(page);
+                        return RC_OK;
+                    }
+                }
+            }
         }
-        markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm,page);
-        unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page);
+        return a;
     }
-    free(page);
-    return RC_OK;
+    return RC_RM_RECORD_NOT_FOUND_ERROR;
 }
 
-RC updateRecord (RM_TableData *rel, Record *record)
+extern RC updateRecord (RM_TableData *rel, Record *record)
 {
-    printf("\n Update Record hiiiii");
-    int totalrecordlength;
-    char *spaceToBeUpdated;
-    BM_PageHandle *page=MAKE_PAGE_HANDLE();
-    BM_BufferPool *bm=(BM_BufferPool *)rel->mgmtData;
-    RID id=record->id;
-    PageNumber _pgno=id.page;//gets the appropriate page that needs to be updated.
-    int slot=id.slot;//gets the appropriate slot that needs to be updated.
-    totalrecordlength=getRecordSize(rel->schema);
-
-    printf("\n In updateRecord 1 %i , %i, %i , %i \n",id, _pgno, slot, totalrecordlength);
-   /* int a;
-    SM_PageHandle ph;
-    ph = (SM_PageHandle) malloc(PAGE_SIZE);
-
-    a = readBlock (id.page, ((RM_RecordMgmt *)rel->mgmtData)->fh, ph);
-    if(a == RC_OK)
-    {
-        record->id = id;
-        record->data = ph;
-        //printf("length of record: %i\n", strlen(ph));
-        //printf("size of record: %i\n", sizeof(ph));
-//        return RC_OK;
-    }
-    */
-    printf("\n In updateRecord 2 : %i , %i, %i , %i , %i\n",id, _pgno, slot, totalrecordlength, spaceToBeUpdated );
+    int a;
     
-    if(pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, _pgno)==RC_OK)
+    //printf("record: %s\n", record->data);
+    //printf("record id.page: %i\n", record->id.page);
+    //printf("record id.slot: %i\n", record->id.slot);
+    //printf("totalNumPages : %i\n", ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages);
+    
+    if(record->id.page > 0 && record->id.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
-        spaceToBeUpdated=page->data;
-        spaceToBeUpdated =spaceToBeUpdated +totalrecordlength*slot; //calculate the address that needs to be updated.
-        strncpy(spaceToBeUpdated,record->data,totalrecordlength); // copy the contents.
-        markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm,page);
-        unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page);
-    } 
-    printf("\n In updateRecord 3 ");
-    free(page);
-    return RC_OK;
+        BM_PageHandle *page = MAKE_PAGE_HANDLE();
+        a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, record->id.page);
 
+        if(a == RC_OK)
+        {
+            sprintf(page->data, "%s", record->data);
+
+            a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+            if(a == RC_OK)
+            {
+                a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+                if(a == RC_OK)
+                {
+                    a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+                    if(a == RC_OK)
+                    {
+                        free(page);
+                        return RC_OK;
+                    }
+                }
+            }
+        }
+        return a;
+    }
+    return RC_RM_RECORD_NOT_FOUND_ERROR;
 }
 
 extern RC getRecord (RM_TableData *rel, RID id, Record *record)
@@ -449,7 +447,8 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record)
     SM_PageHandle ph;
     ph = (SM_PageHandle) malloc(PAGE_SIZE);
 
-    a = readBlock (id.page, ((RM_RecordMgmt *)rel->mgmtData)->fh, ph);
+    //a = readBlock (id.page, ((RM_RecordMgmt *)rel->mgmtData)->fh, ph);
+    a = readBlock(id.page, ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f, ph);
     if(a == RC_OK)
     {
         record->id = id;
@@ -465,29 +464,19 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record)
 // scans
 RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
 {
-
+    
 }
-
 RC next (RM_ScanHandle *scan, Record *record)
 {
-       
+
 }
-RC closeScan (RM_ScanHandle *scan)
+extern RC closeScan (RM_ScanHandle *scan)
 {
- if(scan == NULL)
-        return RC_SCANHANDLE_ERROR;
 
-    //free(scan->mgmtData->currentRID);    // RID in scan's mgmt data
-    free(scan->mgmtData);       // Scan's management data
-    free(scan->rel->mgmtData);    // Scan's RM_tableData's mgmt data
-    free(scan->rel->name);      // Table name in scan
-    free(scan->rel);        // SCan's RM_tableData
-
-    return RC_OK;
 }
 
 // dealing with schemas
-int getRecordSize (Schema *schema)
+extern int getRecordSize (Schema *schema)
 {
     int memoryRequired = recordMemoryRequired(schema);
     //printf("getRecordSize memoryRequired : %i\n", (memoryRequired + schema->numAttr + 1));
@@ -511,7 +500,17 @@ Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *t
 
 extern RC freeSchema (Schema *schema)
 {
+    schema->numAttr = NULL;
+    schema->attrNames = NULL;
+    schema->dataTypes = NULL;
+    schema->typeLength = NULL;
+    schema->keyAttrs = NULL;
+    schema->keySize = NULL;
 
+    free(schema);
+    schema = NULL;
+
+    return RC_OK;
 }
 
 // dealing with records and attribute values
@@ -519,7 +518,7 @@ extern RC createRecord (Record **record, Schema *schema)
 {
     int i;
     int memoryRequired = recordMemoryRequired(schema);
-    printf("memoryRequired : %i\n", (memoryRequired + schema->numAttr + 1));
+    //printf("memoryRequired : %i\n", (memoryRequired + schema->numAttr + 1));
     *record = (Record *)malloc(sizeof(Record));
     record[0]->data = (char *)malloc(memoryRequired + schema->numAttr + 1);
     
@@ -535,27 +534,32 @@ extern RC createRecord (Record **record, Schema *schema)
 
 extern RC freeRecord (Record *record)
 {
-	free(record);//free record pointer.
-	return RC_OK;
+    free(record->data);
+    record->data = NULL;
+
+    free(record);
+    record = NULL;
+
+    return RC_OK;
 }
 
 extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
 {
-    int offset = 0, i=0;
+    int offset = 0, i;
     char temp[1000];
     char *pre, *result;
 
     int mem = recordMemoryRequired(schema);
-    pre = (char *)malloc(mem);
-
-    //for(i = 1; i < strlen(record->data); i++)
-    result = (char *)malloc(schema->typeLength[i]);
+    //result = (char *)malloc(schema->typeLength[i]);
 
     //printf("record : %s\n", record->data);
     //printf("attrNum : %i\n", attrNum);
 
     if(attrNum < schema->numAttr)
     {
+        pre = (char *)malloc(mem);
+        result = (char *)malloc(schema->typeLength[attrNum]);
+
         if(attrNum == 0)
         {
             sprintf(pre, "%s", "(");

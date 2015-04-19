@@ -1,3 +1,4 @@
+#include "mgmt.h"
 #include "storage_mgr.h"
 #include "buffer_mgr.h"
 #include "buffer_mgr_stat.h"
@@ -11,31 +12,6 @@
 static pthread_mutex_t mutex_init = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_unpinPage = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_pinPage = PTHREAD_MUTEX_INITIALIZER;
-
-//Buffer Structure used for all the implementations
-typedef struct Buffer
-{
-	int buffer_mgr_pageNum;
-	int storage_mgr_pageNum;
-	BM_PageHandle *ph;
-	bool dirty;//marks dirty pages
-	int count;
-	int freqCount;//counts the number of times the page was called 
-	int fixcounts;
-	struct Buffer *next;//pointer to the next buffer
-} Buffer;
-
-//Buffer Management Structure for all the Buffer to be created
-typedef struct BM_BufferMgmt
-{
-	SM_FileHandle *f;
-	Buffer *start;//marks the first buffer of the pool
-	Buffer *current;
-	Buffer *iterator;
-	Buffer *search;
-	int numReadIO;//number of Read IO done
-	int numWriteIO;//number of Write IO done
-} BM_BufferMgmt;
 
 //Returns the lenght of the buffer pool
 int lengthofPool(BM_BufferMgmt *mgmt)
@@ -331,6 +307,7 @@ RC shutdownBufferPool(BM_BufferPool *const bm)
 		((BM_BufferMgmt *)bm->mgmtData)->f = NULL;
 		free(bm->mgmtData);
 		bm->mgmtData = NULL;
+		free(bm);
 
 		return RC_OK;
 	}
@@ -349,7 +326,8 @@ RC shutdownBufferPool(BM_BufferPool *const bm)
 	((BM_BufferMgmt *)bm->mgmtData)->f = NULL;
 	free(bm->mgmtData);
 	bm->mgmtData = NULL;
-	
+	free(bm);
+
 	return RC_OK;
 }
 
@@ -464,7 +442,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	pthread_mutex_lock(&mutex_pinPage);
 	if(pageNum >= ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages)
 	{
-		printf("Creating missing page %i\n", pageNum);
+		//printf("Creating missing page %i\n", pageNum);
 		int a = ensureCapacity(pageNum + 1, ((BM_BufferMgmt *)bm->mgmtData)->f);
 	}
 	
