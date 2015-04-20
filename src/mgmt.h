@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "storage_mgr.h"
 #include "buffer_mgr.h"
+#include "expr.h"
 
 //Buffer Structure used for all the implementations
 typedef struct Buffer
@@ -35,5 +36,11 @@ typedef struct RM_RecordMgmt
     BM_BufferPool *bm;
     int *freePages;
 } RM_RecordMgmt;
+
+typedef struct RM_ScanMgmt
+{
+    Expr *cond;
+    int currentPage;
+} RM_ScanMgmt;
 
 #endif
