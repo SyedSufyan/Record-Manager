@@ -444,32 +444,119 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record)
 {
     int a;
 
-    SM_PageHandle ph;
-    ph = (SM_PageHandle) malloc(PAGE_SIZE);
+    //SM_PageHandle ph;
+    //ph = (SM_PageHandle) malloc(PAGE_SIZE);
 
-    //a = readBlock (id.page, ((RM_RecordMgmt *)rel->mgmtData)->fh, ph);
-    a = readBlock(id.page, ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f, ph);
-    if(a == RC_OK)
+    //a = readBlock(id.page, ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f, ph);
+    
+    if(id.page > 0 && id.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
-        record->id = id;
-        record->data = ph;
-        //printf("length of record: %i\n", strlen(ph));
-        //printf("size of record: %i\n", sizeof(ph));
-        return RC_OK;
-    }
+        BM_PageHandle *page = MAKE_PAGE_HANDLE();
+        a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, id.page);
 
-    return a;    
+        if(a == RC_OK)
+        {
+            record->id = id;
+            record->data = page->data;
+
+            a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+            if(a == RC_OK)
+            {
+                free(page);
+                return RC_OK;
+            }
+        }
+        return a;
+    }
+    return RC_RM_RECORD_NOT_FOUND_ERROR;
 }
 
 // scans
 RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
 {
-    
+    //printf("Expr Consdition, Type: %i\n", cond->type);
+    //printf("Expr Consdition, Value->DataType: %i\n", cond->expr.cons->dt);
+    //printf("Expr Consdition, Value->Value: %i\n", cond->expr.cons->v.intV);
+    //printf("Expr Consdition, Value->Value: %s\n", cond->expr.cons->v.stringV);
+    //printf("Expr Consdition, Value->Value: %f\n", cond->expr.cons->v.floatV);
+    //printf("Expr Consdition, Value->Value: %d\n", cond->expr.cons->v.boolV);
+    //printf("Expr Consdition, attrRef: %d\n", cond->expr.attrRef);
+    //printf("Expr Consdition, Operator Type: %d\n", cond->expr.op->type);
+
+    if (rel == NULL)
+        return RC_RM_TABLE_DATA_NOT_INIT;
+
+    RM_ScanMgmt *mgmt;
+    mgmt = (RM_ScanMgmt *)malloc(sizeof(RM_ScanMgmt));
+
+    mgmt->cond = cond;
+    mgmt->currentPage = 1;
+
+    scan->rel = rel;
+    scan->mgmtData = mgmt;
+
+    return RC_OK;
 }
+
 RC next (RM_ScanHandle *scan, Record *record)
 {
+    int a;
+    Value *result;
+    RID rid;
+    Record *currRecord;
+    //ExprType type;
+    //RM_TableData *_rel = scan->rel;
+
+    rid.page = ((RM_ScanMgmt *)scan->mgmtData)->currentPage;
+    rid.slot = 0;
+    //type = ((RM_ScanMgmt *)scan->mgmtData)->cond->type;
+
+    printf("record: %s\n", record->data);
+    printf("record id.page: %i\n", record->id.page);
+    printf("record id.slot: %i\n", record->id.slot);
+
+    printf("cond->type: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->type);
+    
+    /*
+    scan->rel
+
+    if(rid.page > 0 && rid.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
+    {
+        BM_PageHandle *page = MAKE_PAGE_HANDLE();
+        a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, id.page);
+
+        if(a == RC_OK)
+        {
+            record->id = id;
+            record->data = page->data;
+
+            a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+            if(a == RC_OK)
+            {
+                free(page);
+            }
+        }
+    }
+    */
+    a = getRecord (_rel, rid, currRecord);
+
+    printf("record: %s\n", currRecord->data);
+    printf("record id.page: %i\n", currRecord->id.page);
+    printf("record id.slot: %i\n", currRecord->id.slot);
+
+    //printf("cond->type: %i\n", type);
+
+    //((RM_ScanMgmt *)scan->mgmtData)->cond->type = type;
+
+    printf("cond->type: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->type);
+
+    a = evalExpr (currRecord, scan->rel->schema, ((RM_ScanMgmt *)scan->mgmtData)->cond, &result);
+    printf("RC: %d Next scan\n", a);
+
+    //return RC_OK;
 
 }
+
 extern RC closeScan (RM_ScanHandle *scan)
 {
 

@@ -77,11 +77,11 @@ main (void)
 {
   testName = "";
 
-  testInsertManyRecords(); // working
-  testRecords(); // working
-  testCreateTableAndInsert(); //working
-  testUpdateTable(); //working
-  //testScans(); //need start working
+  //testInsertManyRecords();
+  //testRecords();
+  //testCreateTableAndInsert();
+  //testUpdateTable();
+  testScans();
   //testScansTwo();
   //testMultipleScans();
 
@@ -367,8 +367,8 @@ testInsertManyRecords(void)
   TestRecord updates[] = {
     {3333, "iiii", 6}
   };
-  int numInserts = 10000, i;
-  int randomRec = 3333;
+  int numInserts = 10, i;
+  int randomRec = 3; //3333
   Record *r;
   RID *rids;
   Schema *schema;
@@ -413,7 +413,7 @@ testInsertManyRecords(void)
   free(table);
   TEST_DONE();
 }
-/*
+
 void testScans (void)
 {
   RM_TableData *table = (RM_TableData *) malloc(sizeof(RM_TableData));
@@ -468,7 +468,7 @@ void testScans (void)
   MAKE_CONS(left, stringToValue("i1"));
   MAKE_ATTRREF(right, 2);
   MAKE_BINOP_EXPR(sel, left, right, OP_COMP_EQUAL);
-
+  printf("Before start scan\n");
   TEST_CHECK(startScan(table, sc, sel));
   while((rc = next(sc, r)) == RC_OK)
   {
@@ -495,7 +495,7 @@ void testScans (void)
   TEST_DONE();
 }
 
-
+/*
 void testScansTwo (void)
 {
   RM_TableData *table = (RM_TableData *) malloc(sizeof(RM_TableData));
