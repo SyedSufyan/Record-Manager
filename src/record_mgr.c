@@ -488,9 +488,11 @@ RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
 
     RM_ScanMgmt *mgmt;
     mgmt = (RM_ScanMgmt *)malloc(sizeof(RM_ScanMgmt));
+    mgmt->currRecord = (Record *)malloc(sizeof(Record));
 
     mgmt->cond = cond;
     mgmt->currentPage = 1;
+    mgmt->flag = 0;
 
     scan->rel = rel;
     scan->mgmtData = mgmt;
@@ -503,63 +505,93 @@ RC next (RM_ScanHandle *scan, Record *record)
     int a;
     Value *result;
     RID rid;
-    Record *currRecord;
-    //ExprType type;
+    //Record *currRecord;
     //RM_TableData *_rel = scan->rel;
 
     rid.page = ((RM_ScanMgmt *)scan->mgmtData)->currentPage;
     rid.slot = 0;
-    //type = ((RM_ScanMgmt *)scan->mgmtData)->cond->type;
+    //printf("((RM_ScanMgmt *)scan->mgmtData)->currentPage: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->currentPage);
+    //printf("((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages : %i\n", ((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages);
 
-    printf("record: %s\n", record->data);
-    printf("record id.page: %i\n", record->id.page);
-    printf("record id.slot: %i\n", record->id.slot);
-
-    printf("cond->type: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->type);
-    
-    /*
-    scan->rel
-
-    if(rid.page > 0 && rid.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
+    if(rid.page > 0 && rid.page < ((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
-        BM_PageHandle *page = MAKE_PAGE_HANDLE();
-        a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, id.page);
+        //currRecord = (Record *)malloc(sizeof(Record));
 
-        if(a == RC_OK)
+        //printf("record: %s\n", record->data);
+        //printf("record id.page: %i\n", record->id.page);
+        //printf("record id.slot: %i\n", record->id.slot);
+
+        //printf("cond->type: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->type);
+        
+        a = getRecord (scan->rel, rid, ((RM_ScanMgmt *)scan->mgmtData)->currRecord);
+
+        //printf("record: %s\n", ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data);
+        //printf("record id.page: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id.page);
+        //printf("record id.slot: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id.slot);
+
+        //printf("cond->type: %i\n", type);
+
+        //((RM_ScanMgmt *)scan->mgmtData)->cond->type = type;
+
+        //printf("cond->type: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->type);
+        //printf("Expr Consdition, Operator Type: %d\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->expr.op->type);
+
+        a = evalExpr (((RM_ScanMgmt *)scan->mgmtData)->currRecord, scan->rel->schema, ((RM_ScanMgmt *)scan->mgmtData)->cond, &result);
+
+        //printf("RC: %d Next scan\n", a);
+        //printf("Result: %i \n", result->v.boolV);
+
+        if(result->v.boolV)
         {
-            record->id = id;
-            record->data = page->data;
+            record->data = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data;
+            record->id = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id;
+            ((RM_ScanMgmt *)scan->mgmtData)->flag = 1;
+            ((RM_ScanMgmt *)scan->mgmtData)->currentPage = ((RM_ScanMgmt *)scan->mgmtData)->currentPage + 1;
+            return;
+        }
+        else
+        {
+            //*flag = 0;
+            //printf("Recursive Function Impl\n");
+            
+            //free(currRecord);
+            //currRecord = NULL;
 
-            a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
-            if(a == RC_OK)
-            {
-                free(page);
-            }
+            ((RM_ScanMgmt *)scan->mgmtData)->flag = 0;
+            ((RM_ScanMgmt *)scan->mgmtData)->currentPage = ((RM_ScanMgmt *)scan->mgmtData)->currentPage + 1;
+            next(scan, record);
+            //printf("Getting back......\n");
         }
     }
-    */
-    a = getRecord (_rel, rid, currRecord);
+    //printf("Flag : %i\n", ((RM_ScanMgmt *)scan->mgmtData)->flag);
+    //printf("Current record: %s\n", ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data);
+    if(((RM_ScanMgmt *)scan->mgmtData)->flag == 1)
+    {
+        //record->data = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data;
+        //record->id = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id;
+        //printf("record->data: %s\n", record->data);
+        return RC_OK;
+    }
 
-    printf("record: %s\n", currRecord->data);
-    printf("record id.page: %i\n", currRecord->id.page);
-    printf("record id.slot: %i\n", currRecord->id.slot);
-
-    //printf("cond->type: %i\n", type);
-
-    //((RM_ScanMgmt *)scan->mgmtData)->cond->type = type;
-
-    printf("cond->type: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->type);
-
-    a = evalExpr (currRecord, scan->rel->schema, ((RM_ScanMgmt *)scan->mgmtData)->cond, &result);
-    printf("RC: %d Next scan\n", a);
-
-    //return RC_OK;
+    ((RM_ScanMgmt *)scan->mgmtData)->flag = 0;
+    ((RM_ScanMgmt *)scan->mgmtData)->currentPage = 1;
+    
+    return RC_RM_NO_MORE_TUPLES;
 
 }
 
 extern RC closeScan (RM_ScanHandle *scan)
 {
+    free(((RM_ScanMgmt *)scan->mgmtData)->currRecord);
+    ((RM_ScanMgmt *)scan->mgmtData)->currRecord = NULL;
 
+    free(scan->mgmtData);
+    scan->mgmtData = NULL;
+
+    free(scan);
+    scan = NULL;
+
+    return RC_OK;
 }
 
 // dealing with schemas

@@ -41,6 +41,8 @@ typedef struct RM_ScanMgmt
 {
     Expr *cond;
     int currentPage;
+    int flag;
+    Record *currRecord;
 } RM_ScanMgmt;
 
 #endif
