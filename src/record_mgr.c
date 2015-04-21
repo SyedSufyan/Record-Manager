@@ -482,6 +482,7 @@ RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
     //printf("Expr Consdition, Value->Value: %d\n", cond->expr.cons->v.boolV);
     //printf("Expr Consdition, attrRef: %d\n", cond->expr.attrRef);
     //printf("Expr Consdition, Operator Type: %d\n", cond->expr.op->type);
+    int i = 0;
 
     if (rel == NULL)
         return RC_RM_TABLE_DATA_NOT_INIT;
@@ -489,6 +490,18 @@ RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
     RM_ScanMgmt *mgmt;
     mgmt = (RM_ScanMgmt *)malloc(sizeof(RM_ScanMgmt));
     mgmt->currRecord = (Record *)malloc(sizeof(Record));
+    mgmt->cond = (Expr *) malloc(sizeof(Expr);
+    
+    while(cond->expr.op->args[i])
+    {
+        //printf("type: %s\n", cond->expr.op->args[i]);
+        //printf("number of args: %i\n", sizeof(*(cond->expr.op->args))/sizeof(Expr*));
+
+
+
+        i++;
+    }
+    
 
     mgmt->cond = cond;
     mgmt->currentPage = 1;
@@ -575,7 +588,7 @@ RC next (RM_ScanHandle *scan, Record *record)
 
     ((RM_ScanMgmt *)scan->mgmtData)->flag = 0;
     ((RM_ScanMgmt *)scan->mgmtData)->currentPage = 1;
-    
+
     return RC_RM_NO_MORE_TUPLES;
 
 }
@@ -672,7 +685,7 @@ extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
     //result = (char *)malloc(schema->typeLength[i]);
 
     //printf("record : %s\n", record->data);
-    //printf("attrNum : %i\n", attrNum);
+    printf("attrNum : %i\n", attrNum);
 
     if(attrNum < schema->numAttr)
     {
@@ -736,7 +749,7 @@ extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
 
         val->dt = schema->dataTypes[attrNum];
         value[0] = val;
-        //printf("result: %s\n", value[0]->v.stringV);
+        //printf("value->dataType: %i\n", value[0]->dt);
         //printf("serserializeValue : %s\n", serializeValue(value[0]));
 
         //free(pre);
