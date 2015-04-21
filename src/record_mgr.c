@@ -490,18 +490,15 @@ RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
     RM_ScanMgmt *mgmt;
     mgmt = (RM_ScanMgmt *)malloc(sizeof(RM_ScanMgmt));
     mgmt->currRecord = (Record *)malloc(sizeof(Record));
-    mgmt->cond = (Expr *) malloc(sizeof(Expr);
+    mgmt->cond = (Expr *) malloc(sizeof(Expr));
     
-    while(cond->expr.op->args[i])
+/*    while(cond->expr.op->args[i])
     {
-        //printf("type: %s\n", cond->expr.op->args[i]);
+        printf("type: %s  and i is %d   \n", cond->expr.op->args[i], i);
         //printf("number of args: %i\n", sizeof(*(cond->expr.op->args))/sizeof(Expr*));
-
-
-
         i++;
     }
-    
+    */
 
     mgmt->cond = cond;
     mgmt->currentPage = 1;
@@ -521,19 +518,18 @@ RC next (RM_ScanHandle *scan, Record *record)
     //Record *currRecord;
     //RM_TableData *_rel = scan->rel;
 
-    rid.page = ((RM_ScanMgmt *)scan->mgmtData)->currentPage;
-    rid.slot = 0;
+    
     //printf("((RM_ScanMgmt *)scan->mgmtData)->currentPage: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->currentPage);
     //printf("((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages : %i\n", ((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages);
 
-    if(rid.page > 0 && rid.page < ((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages)
+    while(rid.page > 0 && rid.page < ((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
+	rid.page = ((RM_ScanMgmt *)scan->mgmtData)->currentPage;
+        rid.slot = 0;
         //currRecord = (Record *)malloc(sizeof(Record));
-
         //printf("record: %s\n", record->data);
         //printf("record id.page: %i\n", record->id.page);
         //printf("record id.slot: %i\n", record->id.slot);
-
         //printf("cond->type: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->type);
         
         a = getRecord (scan->rel, rid, ((RM_ScanMgmt *)scan->mgmtData)->currRecord);
@@ -541,11 +537,8 @@ RC next (RM_ScanHandle *scan, Record *record)
         //printf("record: %s\n", ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data);
         //printf("record id.page: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id.page);
         //printf("record id.slot: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id.slot);
-
         //printf("cond->type: %i\n", type);
-
         //((RM_ScanMgmt *)scan->mgmtData)->cond->type = type;
-
         //printf("cond->type: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->type);
         //printf("Expr Consdition, Operator Type: %d\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->expr.op->type);
 
@@ -565,14 +558,13 @@ RC next (RM_ScanHandle *scan, Record *record)
         else
         {
             //*flag = 0;
-            //printf("Recursive Function Impl\n");
-            
+            //printf("Recursive Function Impl\n");            
             //free(currRecord);
             //currRecord = NULL;
 
             ((RM_ScanMgmt *)scan->mgmtData)->flag = 0;
             ((RM_ScanMgmt *)scan->mgmtData)->currentPage = ((RM_ScanMgmt *)scan->mgmtData)->currentPage + 1;
-            next(scan, record);
+            //next(scan, record);
             //printf("Getting back......\n");
         }
     }
@@ -595,15 +587,15 @@ RC next (RM_ScanHandle *scan, Record *record)
 
 extern RC closeScan (RM_ScanHandle *scan)
 {
+    ((RM_ScanMgmt *)scan->mgmtData)->currRecord = NULL;    
     free(((RM_ScanMgmt *)scan->mgmtData)->currRecord);
-    ((RM_ScanMgmt *)scan->mgmtData)->currRecord = NULL;
-
-    free(scan->mgmtData);
+    
     scan->mgmtData = NULL;
+    free(scan->mgmtData);
 
-    free(scan);
     scan = NULL;
-
+    free(scan);
+    
     return RC_OK;
 }
 
@@ -745,8 +737,10 @@ extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
         else if(schema->dataTypes[attrNum] == DT_BOOL)
             val->v.boolV = (bool) *result;
         else
+	{
+	    // val->v.stringV = (char *)malloc(strlen(result));
             val->v.stringV = result;
-
+	}
         val->dt = schema->dataTypes[attrNum];
         value[0] = val;
         //printf("value->dataType: %i\n", value[0]->dt);
