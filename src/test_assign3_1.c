@@ -77,13 +77,13 @@ main (void)
 {
   testName = "";
 
-  //testInsertManyRecords();
-  //testRecords();
-  //testCreateTableAndInsert();
-  //testUpdateTable();
+  testInsertManyRecords();
+  testRecords();
+  testCreateTableAndInsert();
+  testUpdateTable();
   testScans();
-  //testScansTwo();
-  //testMultipleScans();
+  testScansTwo();
+  testMultipleScans();
 
   return 0;
 }
@@ -182,7 +182,7 @@ testCreateTableAndInsert (void)
   free(table);
   TEST_DONE();
 }
-/*
+
 void
 testMultipleScans(void)
 {
@@ -258,7 +258,7 @@ testMultipleScans(void)
   free(table);
   TEST_DONE();
 }
-*/
+
 void 
 testUpdateTable (void)
 {
@@ -313,7 +313,7 @@ testUpdateTable (void)
       TEST_CHECK(insertRecord(table,r)); 
       rids[i] = r->id;
     }
-  
+
   // delete rows from table
   for(i = 0; i < numDeletes; i++)
     {
@@ -367,8 +367,8 @@ testInsertManyRecords(void)
   TestRecord updates[] = {
     {3333, "iiii", 6}
   };
-  int numInserts = 10, i;
-  int randomRec = 3; //3333
+  int numInserts = 10000, i;
+  int randomRec = 3333;
   Record *r;
   RID *rids;
   Schema *schema;
@@ -386,7 +386,7 @@ testInsertManyRecords(void)
       realInserts[i] = inserts[i%10];
       realInserts[i].a = i;
       r = fromTestRecord(schema, realInserts[i]);
-      TEST_CHECK(insertRecord(table,r));
+      TEST_CHECK(insertRecord(table,r)); 
       rids[i] = r->id;
     }
   TEST_CHECK(closeTable(table));
@@ -405,6 +405,7 @@ testInsertManyRecords(void)
   TEST_CHECK(updateRecord(table,r));
   TEST_CHECK(getRecord(table, rids[randomRec], r)); 
   ASSERT_EQUALS_RECORDS(fromTestRecord(schema, updates[0]), r, schema, "compare records");
+   
   TEST_CHECK(closeTable(table));
   TEST_CHECK(deleteTable("test_table_t"));
   TEST_CHECK(shutdownRecordManager());
@@ -468,7 +469,7 @@ void testScans (void)
   MAKE_CONS(left, stringToValue("i1"));
   MAKE_ATTRREF(right, 2);
   MAKE_BINOP_EXPR(sel, left, right, OP_COMP_EQUAL);
-  printf("Before start scan\n");
+
   TEST_CHECK(startScan(table, sc, sel));
   while((rc = next(sc, r)) == RC_OK)
   {
@@ -495,7 +496,7 @@ void testScans (void)
   TEST_DONE();
 }
 
-/*
+
 void testScansTwo (void)
 {
   RM_TableData *table = (RM_TableData *) malloc(sizeof(RM_TableData));
@@ -614,7 +615,7 @@ void testScansTwo (void)
   TEST_DONE();
 }
 
-*/
+
 Schema *
 testSchema (void)
 {
@@ -654,8 +655,9 @@ testRecord(Schema *schema, int a, char *b, int c)
 {
   Record *result;
   Value *value;
-  
+
   TEST_CHECK(createRecord(&result, schema));
+
   MAKE_VALUE(value, DT_INT, a);
   TEST_CHECK(setAttr(result, schema, 0, value));
   freeVal(value);
@@ -667,6 +669,6 @@ testRecord(Schema *schema, int a, char *b, int c)
   MAKE_VALUE(value, DT_INT, c);
   TEST_CHECK(setAttr(result, schema, 2, value));
   freeVal(value);
-  
+
   return result;
 }

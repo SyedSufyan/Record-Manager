@@ -18,11 +18,9 @@ char *serSchema(Schema *schema)
     char temp[10];
 
     result = (char *)malloc(3*mem);
-    //result = schema->numAttr + " " + schema->attrNames + " " + schema->dataTypes + " " + schema->typeLength + " " + schema-> keyAttrs + " " + keySize;
+
     sprintf(result, "%d", schema->numAttr);
-    //sprintf(temp, "%d", schema->dataTypes[0]);
     strcat(result, "\n");
-    //strcat(result, temp);
     
     for(i = 0; i < schema->numAttr; i++)
     {
@@ -124,14 +122,7 @@ Schema *deserSchema(char *name)
                     }
                 }
             }
-            /*
-            for(j = 0 ; j < numAttr; j++)
-            {
-                printf("attrNames[%d]: %s\n", j, attrNames[j]);
-                printf("dataTypes[%d]: %d\n", j, dataTypes[j]);
-                printf("typeLength[%d]: %d\n", j, typeLength[j]);
-            }
-            */
+
             free(resultTemp);
             resultTemp = (char *)malloc(10);
 
@@ -167,8 +158,6 @@ Schema *deserSchema(char *name)
                         strcat(resultTemp, temp);
                 }
             }
-
-            //printf("keyAttrs : %d\n", keyAttrs[0]);
 
             Schema *newSchema = (Schema *) malloc(sizeof(Schema));
             newSchema->numAttr = numAttr;
@@ -255,7 +244,6 @@ extern RC openTable (RM_TableData *rel, char *name)
     if(a == RC_OK)
     {
         mgmt->freePages = (int *) malloc(sizeof(int));
-        //mgmt->freePages[0] = mgmt->fh->totalNumPages;
         mgmt->freePages[0] = ((BM_BufferMgmt *)(mgmt->bm)->mgmtData)->f->totalNumPages;
 
         rel->name = name;
@@ -278,17 +266,14 @@ extern RC closeTable (RM_TableData *rel)
         ((RM_RecordMgmt *)rel->mgmtData)->bm->mgmtData = NULL;
         ((RM_RecordMgmt *)rel->mgmtData)->bm = NULL;
 
-        free(((RM_RecordMgmt *)rel->mgmtData)->freePages);
         ((RM_RecordMgmt *)rel->mgmtData)->freePages = NULL;
+        free(((RM_RecordMgmt *)rel->mgmtData)->freePages);
 
-        //free(((RM_RecordMgmt *)rel->mgmtData)->fh);
-        //((RM_RecordMgmt *)rel->mgmtData)->fh = NULL;
-
-        free(rel->mgmtData);
         rel->mgmtData = NULL;
-
-        free(rel->schema);
+        free(rel->mgmtData);
+        
         rel->schema = NULL;
+        free(rel->schema);
 
         return RC_OK;
     }
@@ -317,23 +302,14 @@ extern int getNumTuples (RM_TableData *rel)
 extern RC insertRecord (RM_TableData *rel, Record *record)
 {
     int a;
-    //printf("record: %s\n", record->data);
-    //printf("free page: %d\n", ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
 
     BM_PageHandle *page = MAKE_PAGE_HANDLE();
 
     a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
     
     if(a == RC_OK)
-    {
-        //printf("currPos : %i \n", ((RM_RecordMgmt *)rel->mgmtData)->fh->curPagePos);
-        
+    {        
         sprintf(page->data, "%s", record->data);
-        //printf("data: %s\n", page->data);
-
-        //printf("Total Page Number: %i \n", ((RM_RecordMgmt *)rel->mgmtData)->fh->totalNumPages);
-        //a = writeBlock(((RM_RecordMgmt *)rel->mgmtData)->freePages[0], ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f, page->data);
-        //printf("RC: %d write block\n", a);
 
         a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
         if(a == RC_OK)
@@ -348,8 +324,6 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
                     record->id.slot = 0;
 
                     printf("record data: %s\n", record->data);
-                    //printf("length of record: %i\n", strlen(record->data));
-                    //printf("size of record: %i\n", sizeof(record->data));
 
                     free(page);
 
@@ -368,9 +342,6 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
 {
     int a, i;
 
-    //printf("Record id.page: %i\n", id.page);
-    //printf("Record id.slot: %i\n", id.slot);
-
     if(id.page > 0 && id.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
         BM_PageHandle *page = MAKE_PAGE_HANDLE();
@@ -378,9 +349,7 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
 
         if(a == RC_OK)
         {
-            //printf("page->data: %s\n", page->data);
             memset(page->data, '\0', strlen(page->data));
-            //sprintf(page->data, "%s", '\0');
 
             a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
             if(a == RC_OK)
@@ -405,11 +374,6 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
 extern RC updateRecord (RM_TableData *rel, Record *record)
 {
     int a;
-    
-    //printf("record: %s\n", record->data);
-    //printf("record id.page: %i\n", record->id.page);
-    //printf("record id.slot: %i\n", record->id.slot);
-    //printf("totalNumPages : %i\n", ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages);
     
     if(record->id.page > 0 && record->id.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
@@ -444,11 +408,6 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record)
 {
     int a;
 
-    //SM_PageHandle ph;
-    //ph = (SM_PageHandle) malloc(PAGE_SIZE);
-
-    //a = readBlock(id.page, ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f, ph);
-    
     if(id.page > 0 && id.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
         BM_PageHandle *page = MAKE_PAGE_HANDLE();
@@ -474,35 +433,15 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record)
 // scans
 RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
 {
-    //printf("Expr Consdition, Type: %i\n", cond->type);
-    //printf("Expr Consdition, Value->DataType: %i\n", cond->expr.cons->dt);
-    //printf("Expr Consdition, Value->Value: %i\n", cond->expr.cons->v.intV);
-    //printf("Expr Consdition, Value->Value: %s\n", cond->expr.cons->v.stringV);
-    //printf("Expr Consdition, Value->Value: %f\n", cond->expr.cons->v.floatV);
-    //printf("Expr Consdition, Value->Value: %d\n", cond->expr.cons->v.boolV);
-    //printf("Expr Consdition, attrRef: %d\n", cond->expr.attrRef);
-    //printf("Expr Consdition, Operator Type: %d\n", cond->expr.op->type);
-    int i = 0;
-
     if (rel == NULL)
         return RC_RM_TABLE_DATA_NOT_INIT;
 
     RM_ScanMgmt *mgmt;
     mgmt = (RM_ScanMgmt *)malloc(sizeof(RM_ScanMgmt));
     mgmt->currRecord = (Record *)malloc(sizeof(Record));
-    mgmt->cond = (Expr *) malloc(sizeof(Expr));
-    
-/*    while(cond->expr.op->args[i])
-    {
-        printf("type: %s  and i is %d   \n", cond->expr.op->args[i], i);
-        //printf("number of args: %i\n", sizeof(*(cond->expr.op->args))/sizeof(Expr*));
-        i++;
-    }
-    */
 
     mgmt->cond = cond;
     mgmt->currentPage = 1;
-    mgmt->flag = 0;
 
     scan->rel = rel;
     scan->mgmtData = mgmt;
@@ -515,74 +454,60 @@ RC next (RM_ScanHandle *scan, Record *record)
     int a;
     Value *result;
     RID rid;
-    //Record *currRecord;
-    //RM_TableData *_rel = scan->rel;
 
-    
-    //printf("((RM_ScanMgmt *)scan->mgmtData)->currentPage: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->currentPage);
-    //printf("((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages : %i\n", ((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages);
+    rid.page = ((RM_ScanMgmt *)scan->mgmtData)->currentPage;
+    rid.slot = 0;
 
-    while(rid.page > 0 && rid.page < ((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages)
+    if(((RM_ScanMgmt *)scan->mgmtData)->cond == NULL)
     {
-	rid.page = ((RM_ScanMgmt *)scan->mgmtData)->currentPage;
-        rid.slot = 0;
-        //currRecord = (Record *)malloc(sizeof(Record));
-        //printf("record: %s\n", record->data);
-        //printf("record id.page: %i\n", record->id.page);
-        //printf("record id.slot: %i\n", record->id.slot);
-        //printf("cond->type: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->type);
-        
-        a = getRecord (scan->rel, rid, ((RM_ScanMgmt *)scan->mgmtData)->currRecord);
-
-        //printf("record: %s\n", ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data);
-        //printf("record id.page: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id.page);
-        //printf("record id.slot: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id.slot);
-        //printf("cond->type: %i\n", type);
-        //((RM_ScanMgmt *)scan->mgmtData)->cond->type = type;
-        //printf("cond->type: %i\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->type);
-        //printf("Expr Consdition, Operator Type: %d\n", ((RM_ScanMgmt *)scan->mgmtData)->cond->expr.op->type);
-
-        a = evalExpr (((RM_ScanMgmt *)scan->mgmtData)->currRecord, scan->rel->schema, ((RM_ScanMgmt *)scan->mgmtData)->cond, &result);
-
-        //printf("RC: %d Next scan\n", a);
-        //printf("Result: %i \n", result->v.boolV);
-
-        if(result->v.boolV)
+        while(rid.page > 0 && rid.page < ((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages)
         {
-            record->data = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data;
-            record->id = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id;
-            ((RM_ScanMgmt *)scan->mgmtData)->flag = 1;
-            ((RM_ScanMgmt *)scan->mgmtData)->currentPage = ((RM_ScanMgmt *)scan->mgmtData)->currentPage + 1;
-            return;
-        }
-        else
-        {
-            //*flag = 0;
-            //printf("Recursive Function Impl\n");            
-            //free(currRecord);
-            //currRecord = NULL;
+            a = getRecord (scan->rel, rid, ((RM_ScanMgmt *)scan->mgmtData)->currRecord);
 
-            ((RM_ScanMgmt *)scan->mgmtData)->flag = 0;
-            ((RM_ScanMgmt *)scan->mgmtData)->currentPage = ((RM_ScanMgmt *)scan->mgmtData)->currentPage + 1;
-            //next(scan, record);
-            //printf("Getting back......\n");
+            if(a == RC_OK)
+            {
+                record->data = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data;
+                record->id = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id;
+                ((RM_ScanMgmt *)scan->mgmtData)->currentPage = ((RM_ScanMgmt *)scan->mgmtData)->currentPage + 1;
+
+                rid.page = ((RM_ScanMgmt *)scan->mgmtData)->currentPage;
+                rid.slot = 0;
+
+                return RC_OK;
+            }
+
+            return a;
         }
     }
-    //printf("Flag : %i\n", ((RM_ScanMgmt *)scan->mgmtData)->flag);
-    //printf("Current record: %s\n", ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data);
-    if(((RM_ScanMgmt *)scan->mgmtData)->flag == 1)
+    else
     {
-        //record->data = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data;
-        //record->id = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id;
-        //printf("record->data: %s\n", record->data);
-        return RC_OK;
+        while(rid.page > 0 && rid.page < ((BM_BufferMgmt *)(((RM_RecordMgmt *)(scan->rel)->mgmtData)->bm)->mgmtData)->f->totalNumPages)
+        {        
+            a = getRecord (scan->rel, rid, ((RM_ScanMgmt *)scan->mgmtData)->currRecord);
+
+            a = evalExpr (((RM_ScanMgmt *)scan->mgmtData)->currRecord, scan->rel->schema, ((RM_ScanMgmt *)scan->mgmtData)->cond, &result);
+
+            if(result->dt == DT_BOOL && result->v.boolV)
+            {
+                record->data = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data;
+                record->id = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id;
+                ((RM_ScanMgmt *)scan->mgmtData)->currentPage = ((RM_ScanMgmt *)scan->mgmtData)->currentPage + 1;
+                
+                return RC_OK;
+            }
+            else
+            {
+                ((RM_ScanMgmt *)scan->mgmtData)->currentPage = ((RM_ScanMgmt *)scan->mgmtData)->currentPage + 1;
+
+                rid.page = ((RM_ScanMgmt *)scan->mgmtData)->currentPage;
+                rid.slot = 0;
+            }
+        }
     }
 
-    ((RM_ScanMgmt *)scan->mgmtData)->flag = 0;
     ((RM_ScanMgmt *)scan->mgmtData)->currentPage = 1;
 
     return RC_RM_NO_MORE_TUPLES;
-
 }
 
 extern RC closeScan (RM_ScanHandle *scan)
@@ -603,9 +528,8 @@ extern RC closeScan (RM_ScanHandle *scan)
 extern int getRecordSize (Schema *schema)
 {
     int memoryRequired = recordMemoryRequired(schema);
-    //printf("getRecordSize memoryRequired : %i\n", (memoryRequired + schema->numAttr + 1));
+
     return((memoryRequired)/2);
-    //return 10;
 }
 
 //simple Create Schema
@@ -642,7 +566,7 @@ extern RC createRecord (Record **record, Schema *schema)
 {
     int i;
     int memoryRequired = recordMemoryRequired(schema);
-    //printf("memoryRequired : %i\n", (memoryRequired + schema->numAttr + 1));
+
     *record = (Record *)malloc(sizeof(Record));
     record[0]->data = (char *)malloc(memoryRequired + schema->numAttr + 1);
     
@@ -674,10 +598,6 @@ extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
     char *pre, *result;
 
     int mem = recordMemoryRequired(schema);
-    //result = (char *)malloc(schema->typeLength[i]);
-
-    //printf("record : %s\n", record->data);
-    printf("attrNum : %i\n", attrNum);
 
     if(attrNum < schema->numAttr)
     {
@@ -737,19 +657,10 @@ extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
         else if(schema->dataTypes[attrNum] == DT_BOOL)
             val->v.boolV = (bool) *result;
         else
-	{
-	    // val->v.stringV = (char *)malloc(strlen(result));
             val->v.stringV = result;
-	}
+
         val->dt = schema->dataTypes[attrNum];
         value[0] = val;
-        //printf("value->dataType: %i\n", value[0]->dt);
-        //printf("serserializeValue : %s\n", serializeValue(value[0]));
-
-        //free(pre);
-        //free(result);
-        //pre = NULL;
-        //result = NULL;
 
         return RC_OK;
     }
@@ -766,15 +677,7 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
     int mem = recordMemoryRequired(schema);
     pre = (char *)malloc(mem);
     post = (char *)malloc(mem);
-    //sprintf(record->data, "%s", "(");
-    //printf("record : %s\n", record->data);
-    //printf("%d \n", attrNum);
-    //printf("%d \n", strlen(record->data));
-    //printf("%c \n", record->data[1]);
-    //printf("Value Int: %i\n", value->v.intV);
-    //printf("Value String: %s\n", value->v.stringV);
-    //printf("Value Float: %i\n", value->v.floatV);
-    //printf("Value Boolean: %i\n", value->v.boolV);
+
     if(attrNum < schema->numAttr)
     {
         if(attrNum == 0)
@@ -797,9 +700,6 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
                 sprintf(temp, "%c", record->data[i]);
                 strcat(post, temp);
             }
-
-            //printf("Pre: %s\n", pre);
-            //printf("Post: %s\n", post);
         }
         else if(attrNum > 0 && attrNum < schema->numAttr)
         {
@@ -838,9 +738,6 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
             }
             else
                 sprintf(post, "%s", ")");
-
-            //printf("Pre: %s\n", pre);
-            //printf("Post: %s\n", post);
         }
 
         if(schema->dataTypes[attrNum] == DT_INT)
@@ -856,7 +753,6 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
         strcat(record->data, temp);
         strcat(record->data, post);
 
-        //printf("record : %s\n", record->data);
         free(pre);
         free(post);
         pre = NULL;

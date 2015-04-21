@@ -303,10 +303,12 @@ RC shutdownBufferPool(BM_BufferPool *const bm)
 	//if the head of the pool is NULL we free the memeory of the buffer pool
 	if(((BM_BufferMgmt *)bm->mgmtData)->start == NULL)
 	{
-		free(((BM_BufferMgmt *)bm->mgmtData)->f);
 		((BM_BufferMgmt *)bm->mgmtData)->f = NULL;
-		free(bm->mgmtData);
+		free(((BM_BufferMgmt *)bm->mgmtData)->f);
+
 		bm->mgmtData = NULL;
+		free(bm->mgmtData);
+		
 		free(bm);
 
 		return RC_OK;
@@ -322,10 +324,12 @@ RC shutdownBufferPool(BM_BufferPool *const bm)
 	
 	int a = forceFlushPool(bm);//force write to the storage befor shutting down
 	//free memory
-	free(((BM_BufferMgmt *)bm->mgmtData)->f);
 	((BM_BufferMgmt *)bm->mgmtData)->f = NULL;
-	free(bm->mgmtData);
+	free(((BM_BufferMgmt *)bm->mgmtData)->f);
+
 	bm->mgmtData = NULL;
+	free(bm->mgmtData);
+	
 	free(bm);
 
 	return RC_OK;
