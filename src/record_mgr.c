@@ -295,7 +295,26 @@ extern RC deleteTable (char *name)
 
 extern int getNumTuples (RM_TableData *rel)
 {
+    int a, count = 0;
+    Record *record = (Record *)malloc(sizeof(Record));
+    RID rid;
 
+    rid.page = 1;
+    rid.slot = 0;
+
+    while(rid.page > 0 && rid.page < ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
+    {
+        a = getRecord (rel, rid, record);
+
+        if(a == RC_OK)
+        {
+            count = count + 1;
+            rid.page = rid.page + 1;
+            rid.slot = 0;
+        }
+    }
+
+    return count;
 }
 
 // handling records in a table
