@@ -10,14 +10,19 @@
 #include "record_mgr.h"
 #include "mgmt.h"
 
+/* this funtions taka the object converts the object data type to the string type
+    then writes that string type data to the file */
+
 char *serSchema(Schema *schema)
 {
     char *result;
-    int mem = recordMemoryRequired(schema);
+    int mem = recordMemoryRequired(schema);// marking the memory required by the schema structure
     int i = 10;
     char temp[10];
 
     result = (char *)malloc(3*mem);
+
+    //sending the formated data to a structure variable
 
     sprintf(result, "%d", schema->numAttr);
     strcat(result, "\n");
@@ -171,11 +176,11 @@ Schema *deserSchema(char *name)
         }
     }
 }
-
+//returns the memory required by a perticular schema
 int recordMemoryRequired(Schema *schema)
 {
     int i, memoryRequired = 0;
-
+    //adding all the memory required
     for(i = 0; i < schema->numAttr; i++)
     {
         if(schema->dataTypes[i] == DT_INT)
@@ -188,57 +193,60 @@ int recordMemoryRequired(Schema *schema)
             memoryRequired += schema->typeLength[i];
     }
 
-    return memoryRequired;
+    return memoryRequired;//return
 }
 
-// table and manager
+// initializing record manager
 extern RC initRecordManager (void *mgmtData)
 {
     return RC_OK;
 }
-
+// shutting down record manager
 extern RC shutdownRecordManager ()
 {
     return RC_OK;
 }
 
+// creating table
 extern RC createTable (char *name, Schema *schema)
 {
     int a;
     char *schemaData;
 
-    a = createPageFile(name);
+    a = createPageFile(name);// creating the page file with the passed name
     if(a == RC_OK)
     {
         SM_FileHandle fh;
 
-        a = openPageFile(name, &fh);
+        a = openPageFile(name, &fh);// open the given page file
         if(a == RC_OK)
         {
-            schemaData = serSchema(schema);
+            schemaData = serSchema(schema);//getting the schema data
 
-            a = writeBlock(0, &fh, schemaData);
+            a = writeBlock(0, &fh, schemaData);//writing the schema data to the file handler
             if(a == RC_OK)
             {
-                free(schemaData);
+                free(schemaData);// free the schema data memory
                 return RC_OK;
             }
         }        
     }
-    return a;
+    return a;// return
 }
 
+//funtion to implement the open table
 extern RC openTable (RM_TableData *rel, char *name)
 {
     int a;
     
+	//inititalization and declaration of the record management structure
     RM_RecordMgmt *mgmt;
 
     mgmt = (RM_RecordMgmt *)malloc(sizeof(RM_RecordMgmt));
     mgmt->bm = MAKE_POOL();
 
     mgmt->bm->mgmtData = NULL;
-
+	//initializing buffer pool
     a = initBufferPool(mgmt->bm, name, 4, RS_FIFO, NULL);
     
     if(a == RC_OK)
@@ -256,13 +264,14 @@ extern RC openTable (RM_TableData *rel, char *name)
     return a;
 }
 
+//function to close the table
 extern RC closeTable (RM_TableData *rel)
 {
     int a;
-
+    //shutting down te buffer pool
     a = shutdownBufferPool(((RM_RecordMgmt *)rel->mgmtData)->bm);
     if(a == RC_OK)
-    {
+    {   //making all the memory to null and then freeing the memory slot
         ((RM_RecordMgmt *)rel->mgmtData)->bm->mgmtData = NULL;
         ((RM_RecordMgmt *)rel->mgmtData)->bm = NULL;
 
@@ -281,11 +290,12 @@ extern RC closeTable (RM_TableData *rel)
     return a;
 }
 
+//function to delete the table/pagefile
 extern RC deleteTable (char *name)
 {
     int a;
 
-    a = destroyPageFile(name);
+    a = destroyPageFile(name);//destroy page file
     
     if(a == RC_OK)
         return RC_OK;
@@ -293,49 +303,51 @@ extern RC deleteTable (char *name)
     return a;
 }
 
+//function to return the number of tuples
 extern int getNumTuples (RM_TableData *rel)
 {
-    int a, count = 0;
+    int a, count = 0;//varaible to count the number of tuples
     Record *record = (Record *)malloc(sizeof(Record));
     RID rid;
 
     rid.page = 1;
     rid.slot = 0;
 
-    while(rid.page > 0 && rid.page < ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
+    while(rid.page > 0 && rid.page < ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)// compare condition till the end of the table
     {
         a = getRecord (rel, rid, record);
 
         if(a == RC_OK)
-        {
+        { //increamenting the count and the page id.
             count = count + 1;
             rid.page = rid.page + 1;
             rid.slot = 0;
         }
     }
 
-    return count;
+    return count;// returning the count
 }
 
 // handling records in a table
+//inserting the given record in the table
 extern RC insertRecord (RM_TableData *rel, Record *record)
 {
     int a;
 
-    BM_PageHandle *page = MAKE_PAGE_HANDLE();
-
+    BM_PageHandle *page = MAKE_PAGE_HANDLE();//making a page
+    //pinning a page 
     a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
     
     if(a == RC_OK)
-    {        
+    {        //starting to put the given data in the table
         sprintf(page->data, "%s", record->data);
-
+        //marking the the page dirty as there will be new data in the table
         a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
         if(a == RC_OK)
-        {
+        {   //unpinpage
             a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
             if(a == RC_OK)
-            {
+            {   //flushing the whole data into the page
                 a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
                 if(a == RC_OK)
                 {
@@ -344,7 +356,7 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
 
                     printf("record data: %s\n", record->data);
 
-                    free(page);
+                    free(page);//free page
 
                     ((RM_RecordMgmt *)rel->mgmtData)->freePages[0] += 1;
 
@@ -356,30 +368,30 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
 
     return a;
 }
-
+//function to delete the record
 extern RC deleteRecord (RM_TableData *rel, RID id)
 {
     int a, i;
-
+    
     if(id.page > 0 && id.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
         BM_PageHandle *page = MAKE_PAGE_HANDLE();
-        a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, id.page);
+        a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, id.page);//pin page
 
         if(a == RC_OK)
         {
             memset(page->data, '\0', strlen(page->data));
 
-            a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+            a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//marking the page dirty
             if(a == RC_OK)
             {
-                a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+                a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//unpin page
                 if(a == RC_OK)
                 {
-                    a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+                    a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//flush page to the memory page
                     if(a == RC_OK)
                     {
-                        free(page);
+                        free(page);//free page
                         return RC_OK;
                     }
                 }
@@ -387,32 +399,33 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
         }
         return a;
     }
-    return RC_RM_RECORD_NOT_FOUND_ERROR;
+    return RC_RM_RECORD_NOT_FOUND_ERROR;//return when record not found 
 }
 
+//funtion to update record
 extern RC updateRecord (RM_TableData *rel, Record *record)
 {
     int a;
-    
+    //here we take the given record, pull the existing record and update it with the given data
     if(record->id.page > 0 && record->id.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
         BM_PageHandle *page = MAKE_PAGE_HANDLE();
         a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, record->id.page);
 
         if(a == RC_OK)
-        {
+        {   //mapping the page data and record data
             sprintf(page->data, "%s", record->data);
 
-            a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+            a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//mark the page dirty
             if(a == RC_OK)
             {
-                a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+                a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);// unpin the page
                 if(a == RC_OK)
                 {
-                    a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+                    a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//writing everything
                     if(a == RC_OK)
                     {
-                        free(page);
+                        free(page);//free page
                         return RC_OK;
                     }
                 }
@@ -422,25 +435,25 @@ extern RC updateRecord (RM_TableData *rel, Record *record)
     }
     return RC_RM_RECORD_NOT_FOUND_ERROR;
 }
-
+//retrieving all the record
 extern RC getRecord (RM_TableData *rel, RID id, Record *record)
 {
     int a;
 
     if(id.page > 0 && id.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
-        BM_PageHandle *page = MAKE_PAGE_HANDLE();
-        a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, id.page);
+        BM_PageHandle *page = MAKE_PAGE_HANDLE();//initialize the page
+        a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, id.page);//pin page
 
         if(a == RC_OK)
-        {
+        {   //store the record data and id
             record->id = id;
             record->data = page->data;
 
-            a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
+            a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//unpin page
             if(a == RC_OK)
             {
-                free(page);
+                free(page);//free page
                 return RC_OK;
             }
         }
@@ -449,12 +462,12 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record)
     return RC_RM_RECORD_NOT_FOUND_ERROR;
 }
 
-// scans
+// start scan, here we initialize all the scan data and put it in the table
 RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
 {
     if (rel == NULL)
         return RC_RM_TABLE_DATA_NOT_INIT;
-
+    //initializing the table record
     RM_ScanMgmt *mgmt;
     mgmt = (RM_ScanMgmt *)malloc(sizeof(RM_ScanMgmt));
     mgmt->currRecord = (Record *)malloc(sizeof(Record));
@@ -528,9 +541,10 @@ RC next (RM_ScanHandle *scan, Record *record)
 
     return RC_RM_NO_MORE_TUPLES;
 }
-
+//this function closes scan ie makes all the scan data null, and then free the allocated memory
 extern RC closeScan (RM_ScanHandle *scan)
-{
+{   
+    //making the memory null and then freeing the memory
     ((RM_ScanMgmt *)scan->mgmtData)->currRecord = NULL;    
     free(((RM_ScanMgmt *)scan->mgmtData)->currRecord);
     
@@ -540,20 +554,22 @@ extern RC closeScan (RM_ScanHandle *scan)
     scan = NULL;
     free(scan);
     
-    return RC_OK;
+    return RC_OK;//return
 }
 
 // dealing with schemas
+//retuns the record size
 extern int getRecordSize (Schema *schema)
-{
+{   //gets the memory required by the schema
     int memoryRequired = recordMemoryRequired(schema);
 
-    return((memoryRequired)/2);
+    return((memoryRequired)/2);//returns the record size
 }
 
 //simple Create Schema
 Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys)
-{
+{   
+    //initialize all the schema atrribute to the given value
     Schema *newSchema = (Schema *) malloc(sizeof(Schema));
     newSchema->numAttr = numAttr;
     newSchema->attrNames = attrNames;
@@ -562,18 +578,20 @@ Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *t
     newSchema->keyAttrs = keys;
     newSchema->keySize = keySize;
 
-    return newSchema;
+    return newSchema;//return the new schema
 }
 
+//this function frees all the schema attributes
 extern RC freeSchema (Schema *schema)
-{
+{   
+    //making all the atributes null
     schema->numAttr = NULL;
     schema->attrNames = NULL;
     schema->dataTypes = NULL;
     schema->typeLength = NULL;
     schema->keyAttrs = NULL;
     schema->keySize = NULL;
-
+    //free the schema
     free(schema);
     schema = NULL;
 
