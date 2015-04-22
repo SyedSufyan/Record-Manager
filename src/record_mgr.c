@@ -599,14 +599,15 @@ extern RC freeSchema (Schema *schema)
 }
 
 // dealing with records and attribute values
+// the function creates the record and adds it to the list
 extern RC createRecord (Record **record, Schema *schema)
 {
     int i;
-    int memoryRequired = recordMemoryRequired(schema);
+    int memoryRequired = recordMemoryRequired(schema);// get the required number of byte requird for the record
 
-    *record = (Record *)malloc(sizeof(Record));
+    *record = (Record *)malloc(sizeof(Record));//allocating memory
     record[0]->data = (char *)malloc(memoryRequired + schema->numAttr + 1);
-    
+    //creating record
     sprintf(record[0]->data, "%s", "(");
     for(i = 0; i < schema->numAttr - 1; i++)
     {
@@ -617,11 +618,12 @@ extern RC createRecord (Record **record, Schema *schema)
     return RC_OK;
 }
 
+//freeing the memory taken by records
 extern RC freeRecord (Record *record)
 {
     free(record->data);
     record->data = NULL;
-
+    //free
     free(record);
     record = NULL;
 
