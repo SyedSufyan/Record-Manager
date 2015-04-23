@@ -4,7 +4,7 @@ OBJ :=  record_mgr.o rm_serializer.o expr.o dberror.o storage_mgr.o buffer_mgr_s
 
 assignment2: $(OBJ)
 	$(CC) -w -o test_assign3 $?
-	$(CC) -w -o test_assign3_2 record_mgr.c rm_serializer.c expr.c dberror.c storage_mgr.c buffer_mgr_stat.c buffer_mgr.c test_expr.c
+	$(CC) -w -o test_expr record_mgr.c rm_serializer.c expr.c dberror.c storage_mgr.c buffer_mgr_stat.c buffer_mgr.c test_expr.c
 
 %.o: %.c
 	$(CC) -w -g -c $<
