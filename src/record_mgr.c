@@ -372,7 +372,7 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
 extern RC deleteRecord (RM_TableData *rel, RID id)
 {
     int a, i;
-    
+        
     if(id.page > 0 && id.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
         BM_PageHandle *page = MAKE_PAGE_HANDLE();
@@ -380,7 +380,8 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
 
         if(a == RC_OK)
         {
-            memset(page->data, '\0', strlen(page->data));
+            //memset(page->data, '\0', strlen(page->data));
+	    memset(page->data,'@', strlen(page->data));
 
             a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//marking the page dirty
             if(a == RC_OK)
