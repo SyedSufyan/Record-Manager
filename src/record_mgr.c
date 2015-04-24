@@ -226,6 +226,7 @@ extern RC createTable (char *name, Schema *schema)
             a = writeBlock(0, &fh, schemaData);//writing the schema data to the file handler
             if(a == RC_OK)
             {
+                schemaData = NULL;
                 free(schemaData);// free the schema data memory
                 return RC_OK;
             }
@@ -324,6 +325,9 @@ extern int getNumTuples (RM_TableData *rel)
             rid.slot = 0;
         }
     }
+    
+    record = NULL;
+    free(record); // free record
 
     return count;// returning the count
 }
@@ -355,6 +359,9 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
         }
     }
 
+    r = NULL;
+    free(r); //free the memory of the recrod r which is used as a temp
+
     ((RM_RecordMgmt *)rel->mgmtData)->freePages[0] = rid.page; // setting the page number for insertion of record
     BM_PageHandle *page = MAKE_PAGE_HANDLE();//making a page
     //pinning a page 
@@ -379,6 +386,7 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
 
                     printf("record data: %s\n", record->data);
 
+                    page = NULL;
                     free(page);//free page
 
                     ((RM_RecordMgmt *)rel->mgmtData)->freePages[0] += 1;
@@ -419,6 +427,7 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
                     a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//flush page to the memory page
                     if(a == RC_OK)
                     {
+                        page = NULL;
                         free(page);//free page
                         return RC_OK;
                     }
@@ -454,6 +463,7 @@ extern RC updateRecord (RM_TableData *rel, Record *record)
                     a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//writing everything
                     if(a == RC_OK)
                     {
+                        page = NULL;
                         free(page);//free page
                         return RC_OK;
                     }
@@ -482,6 +492,7 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record)
             a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//unpin page
             if(a == RC_OK)
             {
+                page = NULL;
                 free(page);//free page
                 return RC_OK;
             }
@@ -621,8 +632,8 @@ extern RC freeSchema (Schema *schema)
     schema->keyAttrs = NULL;
     schema->keySize = NULL;
     //free the schema
-    free(schema);
     schema = NULL;
+    free(schema);
 
     return RC_OK;
 }
@@ -650,11 +661,11 @@ extern RC createRecord (Record **record, Schema *schema)
 //freeing the memory taken by records
 extern RC freeRecord (Record *record)
 {
-    free(record->data);
     record->data = NULL;
+    free(record->data);
     //free
-    free(record);
     record = NULL;
+    free(record);
 
     return RC_OK;
 }
@@ -729,6 +740,12 @@ extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
 
         val->dt = schema->dataTypes[attrNum];
         value[0] = val;
+
+        pre = NULL;
+        free(pre);
+
+        result = NULL;
+        free(result);
 
         return RC_OK;
     }
@@ -821,10 +838,10 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
         strcat(record->data, temp);
         strcat(record->data, post);
 
-        free(pre);
-        free(post);
         pre = NULL;
         post = NULL;
+        free(pre);
+        free(post);
 
         return RC_OK;
     }
