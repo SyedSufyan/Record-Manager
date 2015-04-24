@@ -196,6 +196,82 @@ int recordMemoryRequired(Schema *schema)
     return memoryRequired;//return
 }
 
+RC checkPrimaryKey(RM_TableData *rel, Record *record)
+{
+    int a;
+    Value *Val;
+    char *ValSer;
+
+    ((RM_RecordMgmt *)rel->mgmtData)->iterator = ((RM_RecordMgmt *)rel->mgmtData)->keys;
+
+    a = getAttr (record, rel->schema, rel->schema->keyAttrs[0], &Val);
+
+    if(a == RC_OK)
+    {
+        ValSer = serializeValue(Val);
+        printf("ValSer: %s\n", ValSer);
+        while(((RM_RecordMgmt *)rel->mgmtData)->iterator != NULL)
+        {
+            if(strcmp(ValSer, ((RM_RecordMgmt *)rel->mgmtData)->iterator->data) == 0)
+                return 1;
+
+            ((RM_RecordMgmt *)rel->mgmtData)->iterator = ((RM_RecordMgmt *)rel->mgmtData)->iterator->next;
+
+        }
+    }
+
+    if(((RM_RecordMgmt *)rel->mgmtData)->freePages[0] == 1)
+    {
+        ((RM_RecordMgmt *)rel->mgmtData)->keys = (Record_Key *)malloc(sizeof(Record_Key));
+        ((RM_RecordMgmt *)rel->mgmtData)->keys->data = (char *)malloc(strlen(ValSer));
+        strcpy(((RM_RecordMgmt *)rel->mgmtData)->keys->data, ValSer);
+        ((RM_RecordMgmt *)rel->mgmtData)->keys->next = NULL;
+
+        ((RM_RecordMgmt *)rel->mgmtData)->current = ((RM_RecordMgmt *)rel->mgmtData)->keys;
+    }
+    else
+    {
+        ((RM_RecordMgmt *)rel->mgmtData)->current->next = (Record_Key *)malloc(sizeof(Record_Key));
+        ((RM_RecordMgmt *)rel->mgmtData)->current = ((RM_RecordMgmt *)rel->mgmtData)->current->next;
+        ((RM_RecordMgmt *)rel->mgmtData)->current->data = (char *)malloc(strlen(ValSer));
+        strcpy(((RM_RecordMgmt *)rel->mgmtData)->current->data, ValSer);
+        ((RM_RecordMgmt *)rel->mgmtData)->current->next = NULL;
+    }
+
+
+    return 0;
+}
+
+RC deletePrimaryKey(RM_TableData *rel, Record *record)
+{
+    int a;
+    Value *Val;
+    char *ValSer;
+
+    ((RM_RecordMgmt *)rel->mgmtData)->iterator = ((RM_RecordMgmt *)rel->mgmtData)->keys;
+
+    a = getAttr (record, rel->schema, rel->schema->keyAttrs[0], &Val);
+
+    if(a == RC_OK)
+    {
+        ValSer = serializeValue(Val);
+        printf("ValSer: %s\n", ValSer);
+        while(((RM_RecordMgmt *)rel->mgmtData)->iterator != NULL)
+        {
+            if(strcmp(ValSer, ((RM_RecordMgmt *)rel->mgmtData)->iterator->data) == 0)
+            {
+                ((RM_RecordMgmt *)rel->mgmtData)->iterator->data = "@@@@";
+                return 1;
+            }
+
+            ((RM_RecordMgmt *)rel->mgmtData)->iterator = ((RM_RecordMgmt *)rel->mgmtData)->iterator->next;
+
+        }
+    }
+
+    return 0;
+}
+
 // initializing record manager
 extern RC initRecordManager (void *mgmtData)
 {
@@ -252,6 +328,7 @@ extern RC openTable (RM_TableData *rel, char *name)
     
     if(a == RC_OK)
     {
+        //mgmt->keys = (Record_Key *)malloc(sizeof(Record_Key));
         mgmt->freePages = (int *) malloc(sizeof(int));
         mgmt->freePages[0] = ((BM_BufferMgmt *)(mgmt->bm)->mgmtData)->f->totalNumPages;
 
@@ -337,6 +414,11 @@ extern int getNumTuples (RM_TableData *rel)
 extern RC insertRecord (RM_TableData *rel, Record *record)
 {
     int a;
+    //compare value of the primary key against hash map and insert the key if missing
+    a = checkPrimaryKey(rel, record);
+
+    if( a == 1)
+        return RC_RM_PRIMARY_KEY_ALREADY_PRESENT_ERROR; //returns an error if the same primary key is inserted
 
     //Checking for tombstone
     Record *r = (Record *)malloc(sizeof(Record));
@@ -413,6 +495,24 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
 
         if(a == RC_OK)
         {
+            //Delete Primary Key from hash map
+            Record *r = (Record *)malloc(sizeof(Record));
+            RID rid;
+            // Setting record id and slot number
+            rid.page = id.page;
+            rid.slot = id.slot;
+
+            a = getRecord (rel, rid, r); //obtaining the record from the table
+
+            if(a == RC_OK)
+            {   
+                a = deletePrimaryKey(rel, r);
+                if(a == 0)
+                    return RC_RM_PRIMARY_KEY_DELETE_ERROR;
+            }
+            r = NULL;
+            free(r);
+            //soft delete of record
             strcpy(temp, flag);
             strcat(temp, page->data); //setting flag for tombstone implementation
             memset(page->data, '\0', strlen(page->data));
