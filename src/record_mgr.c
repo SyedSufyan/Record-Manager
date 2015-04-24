@@ -383,9 +383,9 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
         if(a == RC_OK)
         {
             strcpy(temp, flag);
-            strcat(temp, page->data);
+            strcat(temp, page->data); //setting flag for tombstone implementation
             memset(page->data, '\0', strlen(page->data));
-            sprintf(page->data, "%s", temp);
+            sprintf(page->data, "%s", temp); //copying the existing data
 
             a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//marking the page dirty
             if(a == RC_OK)
