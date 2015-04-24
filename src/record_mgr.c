@@ -334,12 +334,35 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
 {
     int a;
 
+    //Checking for tombstone
+    Record *r = (Record *)malloc(sizeof(Record));
+    RID rid;
+    // Setting page number for scan
+    rid.page = 1;
+    rid.slot = 0;
+
+    while(rid.page > 0 && rid.page < ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)// compare condition till the end of the table
+    {
+        a = getRecord (rel, rid, r); //obtaining the record from the table
+
+        if(a == RC_OK)
+        {   //checking for soft delete record in the table space for insertion
+            if(strncmp(r->data, "deleted:", 7) == 0)
+                break;
+
+            rid.page = rid.page + 1;
+            rid.slot = 0;
+        }
+    }
+
+    ((RM_RecordMgmt *)rel->mgmtData)->freePages[0] = rid.page; // setting the page number for insertion of record
     BM_PageHandle *page = MAKE_PAGE_HANDLE();//making a page
     //pinning a page 
     a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, ((RM_RecordMgmt *)rel->mgmtData)->freePages[0]);
     
     if(a == RC_OK)
     {        //starting to put the given data in the table
+        memset(page->data, '\0', strlen(page->data));
         sprintf(page->data, "%s", record->data);
         //marking the the page dirty as there will be new data in the table
         a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);
