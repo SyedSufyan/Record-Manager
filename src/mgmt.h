@@ -31,10 +31,19 @@ typedef struct BM_BufferMgmt
 	int numWriteIO;//number of Write IO done
 } BM_BufferMgmt;
 
+typedef struct Record_Key
+{
+    char *data;
+    struct Record_Key *next;
+} Record_Key;
+
 typedef struct RM_RecordMgmt
 {
     BM_BufferPool *bm;
     int *freePages;
+    Record_Key *keys;
+    Record_Key *iterator;
+    Record_Key *current;
 } RM_RecordMgmt;
 
 typedef struct RM_ScanMgmt
