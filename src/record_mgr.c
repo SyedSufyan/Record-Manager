@@ -386,7 +386,7 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
 
                     printf("record data: %s\n", record->data);
 
-                    page = NULL;
+                    //page = NULL;
                     free(page);//free page
 
                     ((RM_RecordMgmt *)rel->mgmtData)->freePages[0] += 1;
@@ -427,7 +427,7 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
                     a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//flush page to the memory page
                     if(a == RC_OK)
                     {
-                        page = NULL;
+                        //page = NULL;
                         free(page);//free page
                         return RC_OK;
                     }
@@ -463,7 +463,7 @@ extern RC updateRecord (RM_TableData *rel, Record *record)
                     a = forcePage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//writing everything
                     if(a == RC_OK)
                     {
-                        page = NULL;
+                        //page = NULL;
                         free(page);//free page
                         return RC_OK;
                     }
@@ -492,7 +492,7 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record)
             a = unpinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//unpin page
             if(a == RC_OK)
             {
-                page = NULL;
+                //page = NULL;
                 free(page);//free page
                 return RC_OK;
             }
