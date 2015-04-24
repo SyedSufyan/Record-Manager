@@ -372,6 +372,8 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
 extern RC deleteRecord (RM_TableData *rel, RID id)
 {
     int a, i;
+    char flag[8] = "deleted:"; // Used for soft delete for Tombstones implementation
+    char *temp = MAKE_PAGE_HANDLE();
         
     if(id.page > 0 && id.page <=  ((BM_BufferMgmt *)(((RM_RecordMgmt *)rel->mgmtData)->bm)->mgmtData)->f->totalNumPages)
     {
@@ -380,8 +382,10 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
 
         if(a == RC_OK)
         {
-            //memset(page->data, '\0', strlen(page->data));
-	    memset(page->data,'@', strlen(page->data));
+            strcpy(temp, flag);
+            strcat(temp, page->data);
+            memset(page->data, '\0', strlen(page->data));
+            sprintf(page->data, "%s", temp);
 
             a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//marking the page dirty
             if(a == RC_OK)
@@ -415,6 +419,7 @@ extern RC updateRecord (RM_TableData *rel, Record *record)
 
         if(a == RC_OK)
         {   //mapping the page data and record data
+            memset(page->data, '\0', strlen(page->data));
             sprintf(page->data, "%s", record->data);
 
             a = markDirty(((RM_RecordMgmt *)rel->mgmtData)->bm, page);//mark the page dirty

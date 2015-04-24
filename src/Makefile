@@ -10,4 +10,4 @@ assignment2: $(OBJ)
 	$(CC) -w -g -c $<
 
 clean:
-	rm -rf test_assign3 test_assign3_2 *.o
+	rm -rf test_assign3 test_expr *.o
