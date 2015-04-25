@@ -196,6 +196,7 @@ int recordMemoryRequired(Schema *schema)
     return memoryRequired;//return
 }
 
+// Check if key exists.
 RC checkPrimaryKey(RM_TableData *rel, Record *record, int ops)
 {
     int a;
@@ -244,6 +245,7 @@ RC checkPrimaryKey(RM_TableData *rel, Record *record, int ops)
     return 0;
 }
 
+// Function to delete primary key
 RC deletePrimaryKey(RM_TableData *rel, Record *record)
 {
     int a;
@@ -262,7 +264,7 @@ RC deletePrimaryKey(RM_TableData *rel, Record *record)
         {
             if(strcmp(ValSer, ((RM_RecordMgmt *)rel->mgmtData)->iterator->data) == 0)
             {
-                ((RM_RecordMgmt *)rel->mgmtData)->iterator->data = "@@@@";
+                ((RM_RecordMgmt *)rel->mgmtData)->iterator->data = "@@@@"; // Check if data is marked by character '@'
                 return 1;
             }
 
@@ -582,8 +584,8 @@ extern RC updateRecord (RM_TableData *rel, Record *record)
             a = getAttr (r, rel->schema, rel->schema->keyAttrs[0], &lVal); // getting the primary key attribute of the current location
             a = getAttr (record, rel->schema, rel->schema->keyAttrs[0], &rVal); // getting the primary key attribute of the record to be inserted
             
-            lSer = serializeValue(lVal); // seriallizing the string
-            rSer = serializeValue(rVal); // seriallizing the string
+            lSer = serializeValue(lVal); // serializing the string
+            rSer = serializeValue(rVal); // serializing the string
 
             if(strcmp(lSer, rSer) != 0)
             {
