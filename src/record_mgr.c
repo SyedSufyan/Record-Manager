@@ -10,7 +10,7 @@
 #include "record_mgr.h"
 #include "mgmt.h"
 
-/* this funtions taka the object converts the object data type to the string type
+/* This function takes the object converts the object data type to the string type
     then writes that string type data to the file */
 
 char *serSchema(Schema *schema)
@@ -22,7 +22,7 @@ char *serSchema(Schema *schema)
 
     result = (char *)malloc(3*mem);
 
-    //sending the formated data to a structure variable
+    //sending the formatted data to a structure variable
 
     sprintf(result, "%d", schema->numAttr);
     strcat(result, "\n");
@@ -176,7 +176,7 @@ Schema *deserSchema(char *name)
         }
     }
 }
-//returns the memory required by a perticular schema
+//Returns the memory required by a particular schema
 int recordMemoryRequired(Schema *schema)
 {
     int i, memoryRequired = 0;
@@ -274,7 +274,7 @@ RC deletePrimaryKey(RM_TableData *rel, Record *record)
     return 0;
 }
 
-// initializing record manager
+// Initializing record manager
 extern RC initRecordManager (void *mgmtData)
 {
     return RC_OK;
@@ -285,7 +285,7 @@ extern RC shutdownRecordManager ()
     return RC_OK;
 }
 
-// creating table
+// creating table according to the schema
 extern RC createTable (char *name, Schema *schema)
 {
     int a;
@@ -313,12 +313,12 @@ extern RC createTable (char *name, Schema *schema)
     return a;// return
 }
 
-//funtion to implement the open table
+//Function to implement the open table
 extern RC openTable (RM_TableData *rel, char *name)
 {
     int a;
     
-	//inititalization and declaration of the record management structure
+	//Initialization and declaration of the record management structure
     RM_RecordMgmt *mgmt;
 
     mgmt = (RM_RecordMgmt *)malloc(sizeof(RM_RecordMgmt));
@@ -348,7 +348,7 @@ extern RC openTable (RM_TableData *rel, char *name)
 extern RC closeTable (RM_TableData *rel)
 {
     int a;
-    //shutting down te buffer pool
+    //shutting down the buffer pool
     a = shutdownBufferPool(((RM_RecordMgmt *)rel->mgmtData)->bm);
     if(a == RC_OK)
     {   //making all the memory to null and then freeing the memory slot
@@ -357,6 +357,20 @@ extern RC closeTable (RM_TableData *rel)
 
         ((RM_RecordMgmt *)rel->mgmtData)->freePages = NULL;
         free(((RM_RecordMgmt *)rel->mgmtData)->freePages);
+		
+		((RM_RecordMgmt *)rel->mgmtData)->iterator = ((RM_RecordMgmt *)rel->mgmtData)->keys;
+
+        while(((RM_RecordMgmt *)rel->mgmtData)->iterator != NULL)
+        {
+            ((RM_RecordMgmt *)rel->mgmtData)->iterator->data = NULL;
+            free(((RM_RecordMgmt *)rel->mgmtData)->iterator->data);
+
+            ((RM_RecordMgmt *)rel->mgmtData)->iterator = ((RM_RecordMgmt *)rel->mgmtData)->iterator->next;
+
+        }
+
+        ((RM_RecordMgmt *)rel->mgmtData)->keys = NULL;
+        free(((RM_RecordMgmt *)rel->mgmtData)->keys);
 
         rel->mgmtData = NULL;
         free(rel->mgmtData);
@@ -386,7 +400,7 @@ extern RC deleteTable (char *name)
 //function to return the number of tuples
 extern int getNumTuples (RM_TableData *rel)
 {
-    int a, count = 0;//varaible to count the number of tuples
+    int a, count = 0;//variable to count the number of tuples
     Record *record = (Record *)malloc(sizeof(Record));
     RID rid;
 
@@ -398,7 +412,7 @@ extern int getNumTuples (RM_TableData *rel)
         a = getRecord (rel, rid, record);
 
         if(a == RC_OK)
-        { //increamenting the count and the page id.
+        { //Incrementing the count and the page id.
             count = count + 1;
             rid.page = rid.page + 1;
             rid.slot = 0;
@@ -541,7 +555,7 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
     return RC_RM_RECORD_NOT_FOUND_ERROR;//return when record not found 
 }
 
-//funtion to update record
+//Function to update record
 extern RC updateRecord (RM_TableData *rel, Record *record)
 {
     int a;
@@ -576,7 +590,7 @@ extern RC updateRecord (RM_TableData *rel, Record *record)
                 if(strncmp(r->data, "deleted:", 7) == 0)
                     return RC_RM_UPDATE_ON_DELETE_RECORD_ERROR; //Can not updated a Deleted record
 
-                a = checkPrimaryKey(rel, r, 2);
+                a = checkPrimaryKey(rel, record, 2);
                 if(a == 1)
                     return RC_RM_PRIMARY_KEY_ALREADY_PRESENT_ERROR; //primary key is already present
             }
@@ -608,7 +622,7 @@ extern RC updateRecord (RM_TableData *rel, Record *record)
     }
     return RC_RM_RECORD_NOT_FOUND_ERROR;
 }
-//retrieving all the record
+//Retrieving all the record
 extern RC getRecord (RM_TableData *rel, RID id, Record *record)
 {
     int a;
@@ -636,7 +650,7 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record)
     return RC_RM_RECORD_NOT_FOUND_ERROR;
 }
 
-// start scan, here we initialize all the scan data and put it in the table
+// Start scan, here we initialize all the scan data and put it in the table.
 RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
 {
     if (rel == NULL)
@@ -655,6 +669,7 @@ RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond)
     return RC_OK;
 }
 
+// This function returns the next tuple that fulfils the given scan condition
 RC next (RM_ScanHandle *scan, Record *record)
 {
     int a;
@@ -670,7 +685,7 @@ RC next (RM_ScanHandle *scan, Record *record)
         {
             a = getRecord (scan->rel, rid, ((RM_ScanMgmt *)scan->mgmtData)->currRecord);
 
-            if(a == RC_OK)
+            if(a == RC_OK) // If getRecord is successful then copy the data
             {
                 record->data = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->data;
                 record->id = ((RM_ScanMgmt *)scan->mgmtData)->currRecord->id;
@@ -715,7 +730,7 @@ RC next (RM_ScanHandle *scan, Record *record)
 
     return RC_RM_NO_MORE_TUPLES;
 }
-//this function closes scan ie makes all the scan data null, and then free the allocated memory
+//This function closes scan , i.e makes all the scan data null, and then free the allocated memory
 extern RC closeScan (RM_ScanHandle *scan)
 {   
     //making the memory null and then freeing the memory
@@ -731,8 +746,9 @@ extern RC closeScan (RM_ScanHandle *scan)
     return RC_OK;//return
 }
 
-// dealing with schemas
-//retuns the record size
+// *************   Dealing with schemas 
+
+//Returns the record size
 extern int getRecordSize (Schema *schema)
 {   //gets the memory required by the schema
     int memoryRequired = recordMemoryRequired(schema);
@@ -740,10 +756,10 @@ extern int getRecordSize (Schema *schema)
     return((memoryRequired)/2);//returns the record size
 }
 
-//simple Create Schema
+//Creates simple Schema
 Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys)
 {   
-    //initialize all the schema atrribute to the given value
+    //initialize all the schema attribute to the given value
     Schema *newSchema = (Schema *) malloc(sizeof(Schema));
     newSchema->numAttr = numAttr;
     newSchema->attrNames = attrNames;
@@ -755,10 +771,10 @@ Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *t
     return newSchema;//return the new schema
 }
 
-//this function frees all the schema attributes
+//This function frees all the schema attributes
 extern RC freeSchema (Schema *schema)
 {   
-    //making all the atributes null
+    //making all the attributes null
     schema->numAttr = NULL;
     schema->attrNames = NULL;
     schema->dataTypes = NULL;
@@ -772,12 +788,13 @@ extern RC freeSchema (Schema *schema)
     return RC_OK;
 }
 
-// dealing with records and attribute values
-// the function creates the record and adds it to the list
+// *************   Dealing with records and attribute values
+
+//The function creates the record and adds it to the list
 extern RC createRecord (Record **record, Schema *schema)
 {
     int i;
-    int memoryRequired = recordMemoryRequired(schema);// get the required number of byte requird for the record
+    int memoryRequired = recordMemoryRequired(schema);// get the required number of byte required for the record
 
     *record = (Record *)malloc(sizeof(Record));//allocating memory
     record[0]->data = (char *)malloc(memoryRequired + schema->numAttr + 1);
@@ -804,6 +821,7 @@ extern RC freeRecord (Record *record)
     return RC_OK;
 }
 
+// Get the attributes of record 
 extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
 {
     int offset = 0, i;
@@ -861,7 +879,6 @@ extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
         }
 
         //printf("result: %s\n", result);
-
         Value *val = (Value*) malloc(sizeof(Value));
         if(schema->dataTypes[attrNum] == DT_INT)
             val->v.intV = atoi(result);
@@ -887,6 +904,7 @@ extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
     return RC_RM_NO_MORE_TUPLES;
 }
 
+//Set attribute values of a record 
 extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
 {
     int offset = 0, i;
@@ -926,7 +944,7 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
 
             sprintf(pre, "%s", "(");
 
-            for(i = 1; i < strlen(record->data); i++)
+            for(i = 1; i < strlen(record->data); i++)   // Check the value till string size
             {
                 if(numCommas > reqNumCommas)
                     break;
@@ -959,14 +977,16 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
                 sprintf(post, "%s", ")");
         }
 
-        if(schema->dataTypes[attrNum] == DT_INT)
+		// Check Data type of attribute 
+		
+        if(schema->dataTypes[attrNum] == DT_INT)              //check int
             sprintf(temp, "%d", value->v.intV);
-        else if(schema->dataTypes[attrNum] == DT_FLOAT)
+        else if(schema->dataTypes[attrNum] == DT_FLOAT)		  //check float
             sprintf(temp, "%f", value->v.floatV);
-        else if(schema->dataTypes[attrNum] == DT_BOOL)
+        else if(schema->dataTypes[attrNum] == DT_BOOL)		  //check Bool
             sprintf(temp, "%d", value->v.boolV);
         else
-            strcpy(temp, value->v.stringV);
+            strcpy(temp, value->v.stringV);					  //Else consider as String
 
         strcpy(record->data, pre);
         strcat(record->data, temp);
