@@ -31,12 +31,15 @@ typedef struct BM_BufferMgmt
 	int numWriteIO;//number of Write IO done
 } BM_BufferMgmt;
 
+// Hash Map implementation for Primary key checking functionality
 typedef struct Record_Key
 {
     char *data;
     struct Record_Key *next;
 } Record_Key;
 
+
+// Structure for all the records to be created
 typedef struct RM_RecordMgmt
 {
     BM_BufferPool *bm;
@@ -46,6 +49,7 @@ typedef struct RM_RecordMgmt
     Record_Key *current;
 } RM_RecordMgmt;
 
+// Structure for scan management
 typedef struct RM_ScanMgmt
 {
     Expr *cond;
