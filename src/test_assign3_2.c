@@ -73,6 +73,7 @@ main (void)
 {
   testName = "";  
   testTombstoneImpl();
+  testPrimaryKeyImpl();
   return 0;
 }
 
@@ -171,7 +172,96 @@ testTombstoneImpl(void)
     {
       RID rid = rids[i];
       TEST_CHECK(getRecord(table, rid, r));
-      printf("record->data: %s\n", r->data);
+      ASSERT_EQUALS_RECORDS(fromTestRecord(schema, finalR[i]), r, schema, "compare records");
+    }
+  
+  TEST_CHECK(closeTable(table));
+  TEST_CHECK(deleteTable("test_table_r"));
+  TEST_CHECK(shutdownRecordManager());
+
+  free(table);
+  TEST_DONE();
+}
+
+void 
+testPrimaryKeyImpl(void)
+{
+  RM_TableData *table = (RM_TableData *) malloc(sizeof(RM_TableData));
+  TestRecord inserts[] = { 
+    {1, "aaaa", 3}, 
+    {2, "bbbb", 2},
+    {3, "cccc", 1},
+    {4, "dddd", 3},
+    {5, "eeee", 5},
+    {6, "ffff", 1},
+    {7, "gggg", 3},
+    {8, "hhhh", 3},
+    {9, "iiii", 2},
+    {10, "jjjj", 5},
+  };
+
+   TestRecord updates[] = {
+    {11, "iiii", 6},
+    {12, "iiii", 6},
+    {5, "iiii", 6},
+  };
+
+  TestRecord finalR[] = {
+    {11, "iiii", 6},
+    {12, "iiii", 6},
+    {3, "cccc", 1},
+    {4, "dddd", 3},
+    {5, "eeee", 5},
+    {6, "ffff", 1},
+    {7, "gggg", 3},
+    {8, "hhhh", 3},
+    {9, "iiii", 2},
+    {10, "jjjj", 5},
+  };
+  int numInserts = 10, numUpdates = 2, numFinal = 7, i;
+  Record *r;
+  RID *rids;
+  Schema *schema;
+  testName = "test creating a new table and insert,update,delete tuples";
+  schema = testSchema();
+  rids = (RID *) malloc(sizeof(RID) * numInserts);
+  
+  TEST_CHECK(initRecordManager(NULL));
+  TEST_CHECK(createTable("test_table_r",schema));
+  TEST_CHECK(openTable(table, "test_table_r"));
+  
+  // insert rows into table
+  for(i = 0; i < numInserts; i++)
+    {
+      r = fromTestRecord(schema, inserts[i]);
+      TEST_CHECK(insertRecord(table,r)); 
+      rids[i] = r->id;
+    }
+  
+  // update rows into table
+  for(i = 0; i < numUpdates; i++)
+    {
+      r = fromTestRecord(schema, updates[i]);
+      r->id = rids[i];
+      TEST_CHECK(updateRecord(table,r)); 
+    }
+
+  r = fromTestRecord(schema, updates[2]);
+  r->id = rids[2];
+  int rc;
+  rc = updateRecord(table,r);
+
+  if( rc != RC_RM_PRIMARY_KEY_ALREADY_PRESENT_ERROR)
+    TEST_CHECK(rc);
+  
+  TEST_CHECK(closeTable(table));
+  TEST_CHECK(openTable(table, "test_table_r"));
+
+  // retrieve records from the table and compare to expected final stage
+  for(i = 0; i < numFinal; i++)
+    {
+      RID rid = rids[i];
+      TEST_CHECK(getRecord(table, rid, r));
       ASSERT_EQUALS_RECORDS(fromTestRecord(schema, finalR[i]), r, schema, "compare records");
     }
   
