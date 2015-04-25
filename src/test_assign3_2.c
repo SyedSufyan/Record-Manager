@@ -129,7 +129,7 @@ testTombstoneImpl(void)
   TEST_CHECK(createTable("test_table_r",schema));
   TEST_CHECK(openTable(table, "test_table_r"));
   
-  // Insert rows into table
+  // insert rows into table
   for(i = 0; i < numInserts; i++)
     {
       r = fromTestRecord(schema, inserts[i]);
@@ -137,13 +137,13 @@ testTombstoneImpl(void)
       rids[i] = r->id;
     }
 
-  // Delete rows from table
+  // delete rows from table
   for(i = 0; i < numDeletes; i++)
     {
       TEST_CHECK(deleteRecord(table,rids[deletes[i]]));
     }
 
-  // Update rows into table
+  // update rows into table
   for(i = 0; i < numUpdates; i++)
     {
       r = fromTestRecord(schema, updates[i]);
@@ -152,8 +152,8 @@ testTombstoneImpl(void)
     }
     
     r = fromTestRecord(schema, updates[3]);
-    r->id = rids[5];
-    TEST_CHECK(updateRecord(table,r));
+    TEST_CHECK(insertRecord(table,r));
+    rids[5] = r->id;
 
     r = fromTestRecord(schema, updates[4]);
     TEST_CHECK(insertRecord(table,r));
@@ -166,11 +166,12 @@ testTombstoneImpl(void)
   TEST_CHECK(closeTable(table));
   TEST_CHECK(openTable(table, "test_table_r"));
 
-  // Retrieve records from the table and compare to expected final stage
+  // retrieve records from the table and compare to expected final stage
   for(i = 0; i < numFinal; i++)
     {
       RID rid = rids[i];
       TEST_CHECK(getRecord(table, rid, r));
+      printf("record->data: %s\n", r->data);
       ASSERT_EQUALS_RECORDS(fromTestRecord(schema, finalR[i]), r, schema, "compare records");
     }
   

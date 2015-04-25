@@ -196,7 +196,7 @@ int recordMemoryRequired(Schema *schema)
     return memoryRequired;//return
 }
 
-RC checkPrimaryKey(RM_TableData *rel, Record *record)
+RC checkPrimaryKey(RM_TableData *rel, Record *record, int ops)
 {
     int a;
     Value *Val;
@@ -209,7 +209,7 @@ RC checkPrimaryKey(RM_TableData *rel, Record *record)
     if(a == RC_OK)
     {
         ValSer = serializeValue(Val);
-        printf("ValSer: %s\n", ValSer);
+
         while(((RM_RecordMgmt *)rel->mgmtData)->iterator != NULL)
         {
             if(strcmp(ValSer, ((RM_RecordMgmt *)rel->mgmtData)->iterator->data) == 0)
@@ -220,24 +220,26 @@ RC checkPrimaryKey(RM_TableData *rel, Record *record)
         }
     }
 
-    if(((RM_RecordMgmt *)rel->mgmtData)->freePages[0] == 1)
+    if(ops == 1)
     {
-        ((RM_RecordMgmt *)rel->mgmtData)->keys = (Record_Key *)malloc(sizeof(Record_Key));
-        ((RM_RecordMgmt *)rel->mgmtData)->keys->data = (char *)malloc(strlen(ValSer));
-        strcpy(((RM_RecordMgmt *)rel->mgmtData)->keys->data, ValSer);
-        ((RM_RecordMgmt *)rel->mgmtData)->keys->next = NULL;
+        if(((RM_RecordMgmt *)rel->mgmtData)->freePages[0] == 1)
+        {
+            ((RM_RecordMgmt *)rel->mgmtData)->keys = (Record_Key *)malloc(sizeof(Record_Key));
+            ((RM_RecordMgmt *)rel->mgmtData)->keys->data = (char *)malloc(strlen(ValSer));
+            strcpy(((RM_RecordMgmt *)rel->mgmtData)->keys->data, ValSer);
+            ((RM_RecordMgmt *)rel->mgmtData)->keys->next = NULL;
 
-        ((RM_RecordMgmt *)rel->mgmtData)->current = ((RM_RecordMgmt *)rel->mgmtData)->keys;
+            ((RM_RecordMgmt *)rel->mgmtData)->current = ((RM_RecordMgmt *)rel->mgmtData)->keys;
+        }
+        else
+        {
+            ((RM_RecordMgmt *)rel->mgmtData)->current->next = (Record_Key *)malloc(sizeof(Record_Key));
+            ((RM_RecordMgmt *)rel->mgmtData)->current = ((RM_RecordMgmt *)rel->mgmtData)->current->next;
+            ((RM_RecordMgmt *)rel->mgmtData)->current->data = (char *)malloc(strlen(ValSer));
+            strcpy(((RM_RecordMgmt *)rel->mgmtData)->current->data, ValSer);
+            ((RM_RecordMgmt *)rel->mgmtData)->current->next = NULL;
+        }
     }
-    else
-    {
-        ((RM_RecordMgmt *)rel->mgmtData)->current->next = (Record_Key *)malloc(sizeof(Record_Key));
-        ((RM_RecordMgmt *)rel->mgmtData)->current = ((RM_RecordMgmt *)rel->mgmtData)->current->next;
-        ((RM_RecordMgmt *)rel->mgmtData)->current->data = (char *)malloc(strlen(ValSer));
-        strcpy(((RM_RecordMgmt *)rel->mgmtData)->current->data, ValSer);
-        ((RM_RecordMgmt *)rel->mgmtData)->current->next = NULL;
-    }
-
 
     return 0;
 }
@@ -255,7 +257,7 @@ RC deletePrimaryKey(RM_TableData *rel, Record *record)
     if(a == RC_OK)
     {
         ValSer = serializeValue(Val);
-        printf("ValSer: %s\n", ValSer);
+        
         while(((RM_RecordMgmt *)rel->mgmtData)->iterator != NULL)
         {
             if(strcmp(ValSer, ((RM_RecordMgmt *)rel->mgmtData)->iterator->data) == 0)
@@ -415,7 +417,7 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
 {
     int a;
     //compare value of the primary key against hash map and insert the key if missing
-    a = checkPrimaryKey(rel, record);
+    a = checkPrimaryKey(rel, record, 1);
 
     if( a == 1)
         return RC_RM_PRIMARY_KEY_ALREADY_PRESENT_ERROR; //returns an error if the same primary key is inserted
@@ -506,7 +508,7 @@ extern RC deleteRecord (RM_TableData *rel, RID id)
 
             if(a == RC_OK)
             {   
-                a = deletePrimaryKey(rel, r);
+                a = deletePrimaryKey(rel, r); // delete key from hash map
                 if(a == 0)
                     return RC_RM_PRIMARY_KEY_DELETE_ERROR;
             }
@@ -550,7 +552,39 @@ extern RC updateRecord (RM_TableData *rel, Record *record)
         a = pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm, page, record->id.page);
 
         if(a == RC_OK)
-        {   //mapping the page data and record data
+        {
+            //Check Primary Key from hash map
+            Record *r = (Record *)malloc(sizeof(Record));
+            RID rid;
+            // Setting record id and slot number
+            rid.page = record->id.page;
+            rid.slot = record->id.slot;
+
+            a = getRecord (rel, rid, r); //obtaining the record from the table
+
+            Value *lVal, *rVal;
+            char *lSer, *rSer;
+
+            a = getAttr (r, rel->schema, rel->schema->keyAttrs[0], &lVal); // getting the primary key attribute of the current location
+            a = getAttr (record, rel->schema, rel->schema->keyAttrs[0], &rVal); // getting the primary key attribute of the record to be inserted
+            
+            lSer = serializeValue(lVal); // seriallizing the string
+            rSer = serializeValue(rVal); // seriallizing the string
+
+            if(strcmp(lSer, rSer) != 0)
+            {
+                if(strncmp(r->data, "deleted:", 7) == 0)
+                    return RC_RM_UPDATE_ON_DELETE_RECORD_ERROR; //Can not updated a Deleted record
+
+                a = checkPrimaryKey(rel, r, 2);
+                if(a == 1)
+                    return RC_RM_PRIMARY_KEY_ALREADY_PRESENT_ERROR; //primary key is already present
+            }
+
+            r = NULL;
+            free(r);
+
+            //mapping the page data and record data
             memset(page->data, '\0', strlen(page->data));
             sprintf(page->data, "%s", record->data);
 
