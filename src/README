@@ -31,8 +31,7 @@ Instructions to run the code
    ./test_expr
 7) Run the below command for testing extra test cases for extra functionality mentioned in test_assign3_2.c:
    ./test_assign3_2
-
-   6) To remove object files, run following command:
+8) To remove object files and executables, run following command:
    make clean  
 
 Extensions: 
